@@ -173,19 +173,30 @@ def detect_lora(x: np.ndarray, fs: float, band: str = "2.4", par_db: float = 12.
         m = len(x) // n
         win = x[:m * n].reshape(m, n)
         nfft = 1 << int(np.ceil(np.log2(n)))      # zero-padded: a fast FFT length
-        spec = np.abs(np.fft.fft(win * np.conj(up)[None, :], nfft, axis=1)) ** 2
-        peak_bin = spec.argmax(axis=1)
-        par = 10 * np.log10(spec.max(axis=1) / np.maximum(spec.mean(axis=1), 1e-30))
-        hit = par > par_db
-        # The candidates dechirped the wrong way round. A CW carrier, noise or
-        # a wideband signal looks alike either way (with fs >> bw a carrier
-        # alone reaches ~10 log10(fs/bw) dB); an upchirp preamble collapses to
-        # one bin only the right way, so demand a clear contrast.
-        idx = np.flatnonzero(hit)
-        if len(idx):
-            spec_d = np.abs(np.fft.fft(win[idx] * up[None, :], nfft, axis=1)) ** 2
-            par_d = 10 * np.log10(spec_d.max(axis=1) / np.maximum(spec_d.mean(axis=1), 1e-30))
-            hit[idx] = par[idx] - par_d > contrast_db
+        # In blocks of windows, so memory stays ~100 MB whatever the rate and
+        # length (all windows at once took 2.3 GB on a 60 MSPS recording).
+        blk = max(1, (4 << 20) // nfft)
+        peak_bin = np.empty(m, dtype=np.int64)
+        par = np.empty(m)
+        hit = np.zeros(m, dtype=bool)
+        cu = np.conj(up)[None, :]
+        for a in range(0, m, blk):
+            w = win[a:a + blk]
+            spec = np.abs(np.fft.fft(w * cu, nfft, axis=1)).astype(np.float32) ** 2
+            peak_bin[a:a + blk] = spec.argmax(axis=1)
+            p = 10 * np.log10(spec.max(axis=1) / np.maximum(spec.mean(axis=1), 1e-30))
+            par[a:a + blk] = p
+            h = p > par_db
+            # The candidates dechirped the wrong way round. A CW carrier, noise
+            # or a wideband signal looks alike either way (with fs >> bw a
+            # carrier alone reaches ~10 log10(fs/bw) dB); an upchirp preamble
+            # collapses to one bin only the right way, so demand a contrast.
+            idx = np.flatnonzero(h)
+            if len(idx):
+                sd = np.abs(np.fft.fft(w[idx] * up[None, :], nfft, axis=1)).astype(np.float32) ** 2
+                pd = 10 * np.log10(sd.max(axis=1) / np.maximum(sd.mean(axis=1), 1e-30))
+                h[idx] = p[idx] - pd > contrast_db
+            hit[a:a + blk] = h
         # a preamble: min_repeat consecutive windows peaking at (nearly) the same bin
         runs = []
         i = 0

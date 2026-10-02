@@ -278,15 +278,17 @@ def bench_mode():
     # a 5.8 GHz recording with a PAL VTX on R5 (5806), and a 2.4 GHz one with ExpressLRS
     rng = np.random.default_rng(6)
     with tempfile.TemporaryDirectory() as d:
-        v = F.fm(F.composite(11.52e6, "PAL", 0.6), 11.52e6, 3e6, 0, cnr_db=20)
-        v = resample_poly(v, 625, 120)                                  # 11.52 -> 60 MSPS
+        # Short recordings, kept in single precision: 0.6 s at 60 MSPS in
+        # complex128 needed ~3 GB at peak and sent a 4 GB Raspberry Pi into swap.
+        v = F.fm(F.composite(11.52e6, "PAL", 0.1), 11.52e6, 3e6, 0, cnr_db=20)
+        v = resample_poly(v, 625, 120).astype(np.complex64)             # 11.52 -> 60 MSPS
         t = np.arange(len(v)) / fs
-        x = v * np.exp(2j * np.pi * (5806e6 - 5790e6) * t) * 0.3
-        x = x + 0.01 * (rng.standard_normal(len(x)) + 1j * rng.standard_normal(len(x)))
+        x = v * np.exp(2j * np.pi * (5806e6 - 5790e6) * t).astype(np.complex64) * 0.3
+        x += (0.01 * (rng.standard_normal(len(x)) + 1j * rng.standard_normal(len(x)))).astype(np.complex64)
         vp = os.path.join(d, "vtx.dat")
         x.astype(np.complex64).tofile(vp)
         lp = os.path.join(d, "elrs.dat")
-        F.lora_packets(fs, 812500, 6, 0.6, 0.004, [-20e6, -7e6, 3e6, 18e6]).tofile(lp)
+        F.lora_packets(fs, 812500, 6, 0.15, 0.004, [-20e6, -7e6, 3e6, 18e6]).tofile(lp)
         rv = subprocess.run([sys.executable, os.path.join(HERE, "bench.py"), "--format", "cf32",
                              "--rate", "60e6", "--center-mhz", "5790", "--detect", "video", vp],
                             capture_output=True, text=True, timeout=300)

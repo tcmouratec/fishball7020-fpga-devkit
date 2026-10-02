@@ -176,33 +176,69 @@ public, and recovering it from the bitstream would mean reverse engineering
 the netlist. Starting `done_dji_release` with no device present is harmless
 (it prints `open_device device Failed`), but it will not decode anything.
 
-## 5. The route that can work: this board as the receiver, decoding on the host
+## 5. The route that works: this board as the receiver, decoding on the host
 
-This board's own firmware already streams IQ over Gigabit Ethernet, and the
-DroneID signal format is public. Open-source decoders that take raw IQ include
-[RUB-SysSec/DroneSecurity](https://github.com/RUB-SysSec/DroneSecurity) (from the
-NDSS 2023 paper that reverse-engineered DroneID) and
-[proto17/dji_droneid](https://github.com/proto17/dji_droneid). Run one of them on
-the Raspberry Pi 5, and publish its output in the JSON that `dji_receiver.py`
-puts on ZMQ port 4221. DragonSync and TAK then work unchanged.
+This route is now built: [`tools/droneid/droneid_rx.py`](../tools/droneid/README.md).
+The board runs its own firmware, unchanged, as a receiver. The program tunes it
+to one DroneID channel at a time and streams IQ over IIOD (pure Python, no
+libiio). It decodes on the Raspberry Pi with its own numpy decoder,
+`ocusync.py`, then hands each frame to `dji_receiver.py` the way MicroPhase's
+newer AntSDR firmware does: a `dji_O,...` line over TCP to port 52002.
+DragonSync and TAK need no change.
 
-What to measure first, before writing the glue:
+Why a new decoder instead of an existing one: RUB-SysSec/DroneSecurity is
+AGPL-3.0, which this GPL-2.0-only repository cannot include, and it no longer
+runs on current numpy. proto17/dji_droneid needs MATLAB or Octave plus a C++
+turbo decoder. `ocusync.py` is written from the published descriptions (the
+NDSS 2023 paper, proto17's MIT-licensed notes, 3GPP TS 36.211/36.212).
 
-- **Sample rate.** DroneID bursts are about 10 MHz wide and the decoders expect
-  15.36 MSPS. [Throughput](modulation-and-throughput.md) measured about **11.3 MS/s**
-  sustained for one receive channel at a 1 Msample buffer, over a WiFi-limited host.
-  The Pi 5's wired port may do better, so measure it. If the link cannot keep
-  up, libiio drops whole buffers but each buffer stays contiguous, and a
-  1 Msample buffer at 15.36 MSPS covers 68 ms. A DroneID frame lasts under 1 ms and
-  repeats, so a stream with gaps should still catch frames, only fewer of
-  them. That is a hypothesis to measure, not a result.
-- **If that is not enough**: on the board itself, capture reaches 183–220 MB/s.
-  A burst detector on the board's ARM (or in the fabric, using
-  [the block design](block-design.md) and its existing decimation path) could
-  forward only the bursts. That is the same split MicroPhase uses, built from
-  parts this repository can rebuild.
-- **O4** (DJI Mini 5 and later) is encrypted. MicroPhase's O4 decoder reports
-  only a hash, frequency and RSSI, and an open decoder will do no better.
+What has been verified, without a drone or this board:
+
+- **Against real drones.** On the two captures published with the NDSS 2023
+  paper:
+  - DJI Mini 2: 10 of 10 bursts decoded, at both 11.52 and 15.36 MSPS.
+  - Mavic Air 2: every field of the burst their decoder reads matches it. The
+    receiver also decodes two Mavic Air 2 bursts that their decoder misses: a
+    full telemetry frame, and a type 0x11 frame carrying the serial number.
+  - Re-encoding a decoded frame reproduces the received turbo parity
+    bit-exactly, which pins down the interleaver and rate-matching parameters.
+- **Sensitivity.** On bursts built in memory and buried in noise, decoding
+  works down to about **0 dB** in-band SNR. With the turbo code ignored (hard
+  decisions on the systematic bits, as the NDSS receiver does), it needs about
+  10 dB.
+- **No false alarms.** Eight million samples of noise produce no candidates.
+- **The whole program**, against a fake board that speaks IIOD and a fake
+  `dji_receiver.py`. It writes no transmit attribute, takes the FPGA decimator
+  out of the path, rebuilds the buffer after every retune, and sends lines that
+  `dji_receiver.py`'s own parser accepts.
+- **Cost.** About 5 ms of CPU per 91 ms of signal on an x86 laptop core when
+  no burst is present, and about 30 ms with one. The Pi 5 should keep up
+  comfortably; the stats line reports any buffer it drops.
+
+What is **not yet measured**, because it needs the board, the Pi and a drone:
+
+- **Throughput.** The default is **11.52 MSPS** (46 MB/s), what one receive
+  channel sustained over Ethernet in [Throughput](modulation-and-throughput.md).
+  Use Ethernet: the USB gadget carries about 10 MB/s. Buffers that arrive late
+  are dropped whole and each decoded buffer is contiguous, so a slow link costs
+  catch rate, not correctness.
+- **Catch rate.** One channel is watched at a time, so roughly one burst in
+  (number of channels) lands where the receiver is listening. MicroPhase watches
+  61.44 MHz at once (`RRX ... 61440000` in their binary) and predicts the hops
+  ("Predict switch" in `drone_dji_rid_decode`). Narrow `--band` or `--freqs`
+  to where your drones transmit.
+- **Gain.** It defaults to `fast_attack`, which is MicroPhase's choice too. A
+  manual gain (`--gain 50`) may suit bursty signals better; compare the two.
+- **The channel plan.** 2.4 GHz uses proto17's observed 15 MHz raster
+  (2399.5–2459.5 MHz). 5.8 GHz adds the centres MicroPhase's decoder tunes to.
+  Up to ±1.2 MHz of offset is found and corrected automatically.
+
+Not reachable on any route: **O4** (DJI Mini 5 and later) is encrypted.
+MicroPhase's O4 decoder reports only a hash, frequency and RSSI.
+
+If the network turns out to be the limit, on-board capture reaches
+183–220 MB/s. The detector in `ocusync.py` could then run on the board's ARM
+and forward only bursts, the split MicroPhase uses. That is not built.
 
 ## Reproducing this
 

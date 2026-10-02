@@ -303,7 +303,8 @@ makes a DHCP reservation impossible.
 | see which Wi-Fi channels are busy around me | [Scanning the Wi-Fi bands](tools/wifi-scan/README.md) — a GNU Radio sweep of 2.4 and 5 GHz |
 | drive the GPIO pins, from host, board or fabric | [GPIO](docs/gpio.md) — three routes, and which pins are free |
 | blink the USER LED | [Controlling the USER LED](docs/user-led.md) |
-| run another Zynq board's SD image (e.g. MicroPhase's DJI DroneID) on this one | [Why the ANTSDR E200 DroneID image is silent here, and cannot work](docs/droneid-microphase.md) · [the checking tools](tools/droneid/README.md) |
+| **detect DJI drones (DroneID) and feed DragonSync/TAK** | **[The DroneID receiver](tools/droneid/README.md)**: decoded on the host, into `dji_receiver.py` unchanged |
+| run another Zynq board's SD image (e.g. MicroPhase's DJI DroneID) on this one | [Why the ANTSDR E200 DroneID image is silent here, and cannot work](docs/droneid-microphase.md) |
 | put the board on my router, or fix its IP | `./devkit net dhcp` · [Changing the IP address](docs/networking.md) |
 | drive the radio from an AI assistant | the sibling **[Fishball7020-mcp](https://github.com/matsvandamme/Fishball7020-mcp)** — 21 MCP tools |
 | use a tool better suited than GNU Radio | [Other tools, and when they beat GNU Radio](docs/other-sdr-tools.md) — Maia SDR on the fabric, inspectrum, URH, pyadi-iio |

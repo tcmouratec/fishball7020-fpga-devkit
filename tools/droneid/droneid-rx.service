@@ -1,0 +1,25 @@
+# systemd unit for the Raspberry Pi: decode DroneID from the board and feed
+# dji_receiver.py, which must be running in "new" or "dual" mode (port 52002).
+#
+#   sudo cp tools/droneid/droneid-rx.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now droneid-rx
+#   journalctl -u droneid-rx -f
+#
+# Adjust User and the two paths to where this repository is cloned. The board
+# is found by name (fishball.local) unless you add --uri ip:ADDRESS.
+[Unit]
+Description=DJI DroneID receiver (Fishball7020 / PlutoSky, decoded on this host)
+After=network-online.target dji-receiver.service
+Wants=network-online.target
+
+[Service]
+User=dragon
+WorkingDirectory=/home/dragon/fishball7020-fpga-devkit
+ExecStart=/usr/bin/python3 /home/dragon/fishball7020-fpga-devkit/tools/droneid/droneid_rx.py --dji-receiver 127.0.0.1:52002 --stats 300
+Restart=always
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

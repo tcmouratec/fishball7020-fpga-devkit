@@ -102,6 +102,16 @@ jobs:
           PY
           fi
 
+      # The DroneID receiver: bursts built in memory and decoded back (bit-exact
+      # payloads, CFO, both frame layouts, the turbo decoder's gain over hard
+      # decisions, no false alarms on noise), then the whole program against a
+      # fake board and a fake dji_receiver.py.
+      - name: DJI DroneID decoder and receiver (no board)
+        run: |
+          python -m pip install --quiet numpy
+          python tools/droneid/test_ocusync.py
+          python tools/droneid/test_droneid_rx.py
+
       - name: Every tool agrees on where the board is
         run: |
           # One resolver, so a board on its mDNS name is reachable by all of

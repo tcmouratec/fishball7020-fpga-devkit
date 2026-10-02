@@ -109,7 +109,7 @@ jobs:
       # synthetic wideband recording.
       - name: DJI DroneID decoder and receiver (no board)
         run: |
-          python -m pip install --quiet numpy scipy
+          python -m pip install --quiet numpy scipy pyzmq
           python tools/droneid/test_ocusync.py
           python tools/droneid/test_fpv.py
           python tools/droneid/test_droneid_rx.py

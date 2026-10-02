@@ -343,13 +343,46 @@ def scan_mode():
     board.loops = {5765.0: video.astype(np.complex64), 2435.0: elrs.astype(np.complex64)}
     for t in (board, dji, scope):
         t.start()
+    zsub = None
+    try:
+        import zmq
+        _s = socket.socket()
+        _s.bind(("127.0.0.1", 0))
+        zport = _s.getsockname()[1]           # a free port, released again
+        _s.close()
+        zsub = zmq.Context.instance().socket(zmq.SUB)
+        zsub.setsockopt(zmq.SUBSCRIBE, b"")
+        zsub.setsockopt(zmq.RCVTIMEO, 200)
+        zsub.setsockopt(zmq.LINGER, 0)
+        zsub.connect(f"tcp://127.0.0.1:{zport}")
+    except ImportError:
+        print("  --    pyzmq not installed: the DragonSync FPV path is not tested")
     cmd = [sys.executable, os.path.join(HERE, "droneid_rx.py"),
            "--uri", f"ip:127.0.0.1:{board.port}", "--scan", "video,elrs,droneid",
            "--video-bands", "5750-5790", "--elrs-bands", "2.4", "--freqs", str(O4_MHZ),
            "--dwell", "0.6", "--duration", "8", "--json", "--alert-interval", "1",
            "--dji-receiver", f"127.0.0.1:{dji.port}",
            "--dragonscope", f"http://127.0.0.1:{scope.port}"]
+    zmsgs = []
+    if zsub is not None:
+        cmd += ["--fpv-zmq", f"tcp://127.0.0.1:{zport}"]
+        done = threading.Event()
+
+        def collect():
+            while not done.is_set():
+                try:
+                    zmsgs.append(json.loads(zsub.recv_string()))
+                except zmq.Again:
+                    pass
+        th = threading.Thread(target=collect, daemon=True)
+        th.start()
+    # run() drains stdout/stderr while it waits; reading only ZMQ here would
+    # let the child block on a full pipe.
     p = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    if zsub is not None:
+        time.sleep(0.5)
+        done.set()
+        th.join(2)
     out = [json.loads(ln) for ln in p.stdout.splitlines() if ln.startswith("{")]
     vids = [o for o in out if o.get("kind") == "analog_video"]
     loras = [o for o in out if o.get("kind") == "lora"]
@@ -371,8 +404,19 @@ def scan_mode():
     time.sleep(0.5)
     lines = [ln.rstrip(";").split(",") for ln in dji.lines if ln.startswith("dji_O,")]
     alerts = {pt[5] for pt in lines if pt[5].startswith("drone-alert-")}
-    ok &= check({"drone-alert-fpv-video-R4", "drone-alert-elrs-2.4"} <= alerts,
-                f"dji_receiver gets drone-alert ids for both: {sorted(alerts)}")
+    if zsub is not None:
+        info = [next(i["Signal Info"] for i in m if "Signal Info" in i) for m in zmsgs]
+        ids = {next(i["Basic ID"]["id"] for i in m if "Basic ID" in i) for m in zmsgs}
+        ok &= check(zmsgs and ids == {"fpv-alert-5769.000MHz"}
+                    and all(s_["source"] == "confirm" and s_["center_hz"] == 5769e6
+                            and s_["pal_conf"] >= 60 > s_["ntsc_conf"] for s_ in info),
+                    "video goes to DragonSync's FPV port as WarDragon's FPV scanner sends it "
+                    f"({len(zmsgs)} messages, {sorted(ids)})")
+        ok &= check(alerts == {"drone-alert-elrs-2.4"},
+                    f"and only ExpressLRS goes through dji_receiver: {sorted(alerts)}")
+    else:
+        ok &= check({"drone-alert-fpv-video-R4", "drone-alert-elrs-2.4"} <= alerts,
+                    f"dji_receiver gets drone-alert ids for both: {sorted(alerts)}")
     o4d = [pt for pt in lines if pt[1] == "4" and pt[5] == "1581F9TEST0001"]
     ok &= check(o4d and abs(float(o4d[0][7]) + 12.9714) < 1e-4,
                 "and the decrypted O4 drone as protocol 4 with serial and latitude")

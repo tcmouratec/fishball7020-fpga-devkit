@@ -46,6 +46,7 @@ Options that matter:
 | `--video-bands 5.8,1.2` | analog video ranges: `5.8`, `5.3`, `1.2`, `3.3`, or `LO-HI` in MHz |
 | `--elrs-bands 2.4,915` | ExpressLRS domains: `2.4`, `915`, `868` |
 | `--dragonscope http://127.0.0.1` | ask a licensed DragonScope proxy for O4 serial and position ([below](#dragonscope-o4-positions)) |
+| `--fpv-zmq` | publish analog-video detections on 4226 for DragonSync's FPV ingest ([below](#on-a-wardragon-kit)) |
 | `--save-failed DIR` | keep the IQ of bursts found but not decoded, for study |
 | `--file REC.sigmf-meta` | decode a recording (SigMF from `tools/sigmf-capture.py`, or raw with `--file-rate`) |
 
@@ -205,6 +206,55 @@ Not covered yet:
 
 Crossfire's LoRa modes may be caught by the 900 MHz detector if their
 parameters match; that is not verified.
+
+## On a WarDragon kit
+
+The kit's services (from alphafox02/DragonSync `services/README.md`):
+
+| Service | What it does | Port |
+|---|---|---|
+| `zmq-decoder` (droneid-go) | Remote ID from the WiFi adapter, the Sniffle Bluetooth dongle and the ESP32, plus DJI from `dji-receiver` (`-dji 127.0.0.1:4221`) | pub 4224 |
+| `dji-receiver` (`dji_receiver.py`) | DJI DroneID lines from an SDR, in on 52002 | pub 4221 |
+| `fpv-receiver` (wardragon-fpv-detect, optional) | analog FPV scan on a Pluto; "confirm" needs the licensed `suscli fpvdet` plugin | pub 4226 |
+| `wardragon-monitor` | the kit's GPS and health | pub 4225 |
+| `dragonsync` | everything above to TAK / MQTT | sub 4224, 4225, 4226 |
+
+This receiver slots into that chain without replacing anything:
+
+- **DJI DroneID and O4:** `--dji-receiver 127.0.0.1:52002` feeds the
+  `dji-receiver` that is already running (its parser is identical in the
+  antsdr and dragonsdr repos), and droneid-go carries the result to
+  DragonSync on 4224.
+- **Remote ID** (FIMI, Potensic, Autel, Skydio, DJI's own RID...) stays with
+  droneid-go and its WiFi/Bluetooth/ESP32 hardware. This receiver does not
+  duplicate it.
+- **Analog FPV video:** `--fpv-zmq` publishes on 4226 exactly what
+  wardragon-fpv-detect publishes:
+  - `fpv-alert-<MHz>` in Basic ID;
+  - Signal Info with `source: "confirm"`, `center_hz`, and
+    `pal_conf`/`ntsc_conf` on a 0–100 scale.
+
+  DragonSync then shows it as its own FPV marker, positioned from the kit's
+  GPS. Set `fpv_enabled = true` in DragonSync's `config.ini`. The confirmation
+  comes from `fpv.py`'s line-rate comb, so no licensed plugin is needed.
+  Checked against DragonSync's own parser: the source is accepted, the UID is
+  `fpv-alert-5769MHz`, and the callsign is `fpv-alert-5769.000MHz`.
+- **ExpressLRS** has no source DragonSync's FPV ingest accepts by default, so
+  it goes through dji-receiver as `drone-alert-elrs-<band>`.
+
+**One SDR, one owner.** If `fpv-receiver` is configured to use this
+PlutoSky, it and `droneid_rx.py` will fight over the board. Its DJI guard
+only knows how to pause an AntSDR. Stop it (`sudo systemctl disable --now
+fpv-receiver`), or point it at a different SDR. `droneid_rx.py --scan
+droneid,video,elrs` interleaves all three on the one board. If
+`fpv-receiver` holds port 4226, `--fpv-zmq` says so and stops; give it
+another port and match `fpv_zmq_port` in DragonSync's `config.ini`.
+
+```bash
+# the whole set on the kit (needs: sudo apt install python3-numpy python3-zmq)
+tools/droneid/droneid_rx.py --scan droneid,video,elrs \
+    --dji-receiver 127.0.0.1:52002 --fpv-zmq
+```
 
 ## DragonScope (O4 positions)
 

@@ -15,6 +15,10 @@ Wants=network-online.target
 [Service]
 User=dragon
 WorkingDirectory=/home/dragon/fishball7020-fpga-devkit
+# DroneID only. For FPV video and ExpressLRS as well (video then goes to
+# DragonSync's FPV port 4226; set fpv_enabled = true there, needs python3-zmq,
+# and do not run WarDragon's fpv-receiver on this same SDR), use instead:
+#   ExecStart=... droneid_rx.py --scan droneid,video,elrs --dji-receiver 127.0.0.1:52002 --fpv-zmq --stats 300
 ExecStart=/usr/bin/python3 /home/dragon/fishball7020-fpga-devkit/tools/droneid/droneid_rx.py --dji-receiver 127.0.0.1:52002 --stats 300
 Restart=always
 RestartSec=5

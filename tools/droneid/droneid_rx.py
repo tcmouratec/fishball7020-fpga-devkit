@@ -273,6 +273,75 @@ class DjiReceiverSink:
             self.sent += 1
 
 
+class FpvZmqSink:
+    """Publish analog-video detections the way WarDragon's FPV scanner does.
+
+    alphafox02/wardragon-fpv-detect (fpv_energy_scan.py) binds an XPUB on
+    tcp://127.0.0.1:4226 and sends a JSON list: Basic ID ("fpv-alert-<MHz>"),
+    Self-ID, Frequency Message and Signal Info (source "confirm", center_hz,
+    bandwidth_hz, pal_conf, ntsc_conf on a 0-100 scale, rssi). DragonSync's
+    FPV ingest (fpv_enabled = true, fpv_zmq_port = 4226) subscribes to it and
+    draws an FPV marker beside the kit, taking the kit's position from the
+    WarDragon monitor. Their "confirm" comes from a licensed suscli fpvdet
+    plugin; here it comes from fpv.detect_video's line-rate comb.
+
+    Confidence: fpvdet's publish threshold is 60, so the comb score maps to
+    0 at the noise level (3 dB), 60 at the detection threshold (9 dB), and
+    rises 2 points per dB to 100.
+    Location is left out: DragonSync falls back to the kit's own GPS.
+    Needs pyzmq (sudo apt install python3-zmq)."""
+
+    def __init__(self, endpoint):
+        import zmq
+        self.zmq = zmq
+        self.sock = zmq.Context.instance().socket(zmq.XPUB)
+        self.sock.setsockopt(zmq.XPUB_VERBOSE, True)
+        # Never hold the process open at exit for alerts nobody is reading.
+        self.sock.setsockopt(zmq.LINGER, 0)
+        self.sock.bind(endpoint)
+        self.sent = 0
+
+    @staticmethod
+    def conf(score_db):
+        """Comb score (dB) -> 0-100: noise (<= 3 dB) 0, the detection
+        threshold (9 dB) 60, then 2 points per dB up to 100."""
+        if score_db <= 3.0:
+            return 0.0
+        if score_db <= 9.0:
+            return round(10.0 * (score_db - 3.0), 1)
+        return round(min(100.0, 60.0 + 2.0 * (score_db - 9.0)), 1)
+
+    @classmethod
+    def message(cls, a):
+        # The carrier estimate wanders with the picture (it is the mean FM
+        # frequency); DragonSync names the marker after the frequency, so use
+        # the channel's nominal frequency, or whole MHz, to keep one marker.
+        if a.get("channel"):
+            hz = float(a["channel"].split()[1]) * 1e6
+        else:
+            hz = round(a["freq_mhz"]) * 1e6
+        sig = {"source": "confirm", "center_hz": hz, "bandwidth_hz": 20e6,
+               "pal_conf": cls.conf(a["score_db"]) if a["standard"] == "PAL" else cls.conf(a["other_db"]),
+               "ntsc_conf": cls.conf(a["score_db"]) if a["standard"] == "NTSC" else cls.conf(a["other_db"])}
+        if a.get("rssi_db") is not None:
+            sig["rssi"] = a["rssi_db"]
+        return [
+            {"Basic ID": {"id_type": "Serial Number (ANSI/CTA-2063-A)",
+                          "id": f"fpv-alert-{hz / 1e6:.3f}MHz", "description": "FPV Signal"}},
+            {"Self-ID Message": {"text": f"FPV alert (confirm) {a['standard']}"
+                                         + (f" {a['channel']}" if a.get("channel") else "")}},
+            {"Frequency Message": {"frequency": hz}},
+            {"Signal Info": sig},
+        ]
+
+    def publish(self, a):
+        try:
+            self.sock.send_string(json.dumps(self.message(a)), self.zmq.NOBLOCK)
+            self.sent += 1
+        except self.zmq.ZMQError:
+            pass
+
+
 class DragonScope:
     """Ask a DragonScope proxy to decrypt O4 packets.
 
@@ -583,6 +652,9 @@ def main():
                      help="send dji_O lines to dji_receiver.py, e.g. 127.0.0.1:52002")
     out.add_argument("--report-id-only", action="store_true",
                      help="also send frames that carry a serial but no position (they land at 0,0)")
+    out.add_argument("--fpv-zmq", nargs="?", const="tcp://127.0.0.1:4226", metavar="ENDPOINT",
+                     help="publish analog-video detections for DragonSync's FPV ingest, as "
+                          "WarDragon's FPV scanner does (default tcp://127.0.0.1:4226)")
     out.add_argument("--dragonscope", metavar="URL",
                      help="ask a DragonScope proxy to decrypt O4 packets, e.g. http://127.0.0.1")
     out.add_argument("--alert-interval", type=float, default=5.0,
@@ -613,6 +685,15 @@ def main():
         if sink:
             sink.emit(d)
     scope = DragonScope(args.dragonscope, decrypted) if args.dragonscope else None
+    fpvpub = None
+    if args.fpv_zmq:
+        try:
+            fpvpub = FpvZmqSink(args.fpv_zmq)
+        except ImportError:
+            ap.error("--fpv-zmq needs pyzmq: sudo apt install python3-zmq")
+        except Exception as e:                       # noqa: BLE001 - bind failures
+            ap.error(f"--fpv-zmq: cannot bind {args.fpv_zmq} ({e}); is WarDragon's "
+                     "fpv-receiver service running? Stop it, or use another port")
     if args.save_failed:
         os.makedirs(args.save_failed, exist_ok=True)
 
@@ -685,7 +766,9 @@ def main():
                             log(describe(a))
                             if args.json:
                                 print(json.dumps(a), flush=True)
-                            if sink and (kind == "video" or a.get("elrs")):
+                            if kind == "video" and fpvpub:
+                                fpvpub.publish(a)            # DragonSync's own FPV path
+                            elif sink and (kind == "video" or a.get("elrs")):
                                 sink.alert(a)
                     continue
                 # One receiver per channel: each keeps its own noise floor, which

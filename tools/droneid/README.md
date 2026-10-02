@@ -53,6 +53,34 @@ Options that matter:
 It only receives. The only output attribute it writes is the RX LO frequency;
 nothing on the transmit side is touched.
 
+## With F5OEO's tezuka firmware
+
+[tezuka_fw](https://github.com/F5OEO/tezuka_fw) is a Pluto-family firmware
+with a `fishball7020` build for this board. It boots from the SD card, so the
+flash keeps the firmware it has. Two of its features matter here:
+
+- **8-bit I/Q (`--cs8`).** With only the I channel enabled, tezuka's FPGA
+  packs I8/Q8 into the I channel's 16-bit slot. That halves the Ethernet
+  traffic: 11.52 MSPS goes from 46 MB/s to 23 MB/s. The board can then stream
+  a dwell with fewer gaps, so more bursts are caught. 8 bits is enough here:
+  DroneID decodes near 0 dB SNR, far below what 8 bits can carry. **Use
+  `--cs8` only with tezuka.** Stock firmware sends I alone in that mode, and
+  nothing decodes.
+- **Maia SDR.** A web waterfall served by the board, for checking by eye
+  that the antenna sees the drone's 2.4/5.8 GHz signal. It and this receiver
+  use the same receive chain, so run one at a time.
+
+```sh
+# run from: the repo root, on the Pi, with the board booted from a tezuka SD card
+python3 tools/droneid/droneid_rx.py --cs8 --scan droneid,video,elrs --json
+```
+
+Boot it the way this repo boots any image: from the SD card only. Copy the
+`sdimg` folder of the release's `fishball7020` zip to a FAT32 card and boot
+from it. Never use `frm` or
+DFU. tezuka runs `/mnt/jffs2/autorun.sh` like the stock firmware does, so
+check that file first. Not yet tried on this board.
+
 ## What one frame looks like
 
 ```

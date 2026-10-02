@@ -65,7 +65,7 @@ class FakeBoard(threading.Thread):
             c, _ = self.srv.accept()
             threading.Thread(target=self.serve, args=(c,), daemon=True).start()
 
-    def samples(self, n):
+    def samples(self, n, cs8=False):
         x = 0.01 * (self.rng.standard_normal(n) + 1j * self.rng.standard_normal(n))
         lo = float(self.attrs.get(("ad9361-phy", "altvoltage0", "frequency"), 0))
         for mhz, loop in self.loops.items():
@@ -77,6 +77,11 @@ class FakeBoard(threading.Thread):
             if abs(lo - mhz * 1e6) < 1:
                 for at in range(5000, n - len(b), 300000):
                     x[at:at + len(b)] += b
+        if cs8:              # tezuka: I8/Q8 packed into the I channel's slot
+            iq = np.empty(2 * n, dtype=np.int8)
+            iq[0::2] = np.clip(np.round(x.real * 128), -127, 127)
+            iq[1::2] = np.clip(np.round(x.imag * 128), -127, 127)
+            return iq.tobytes()
         iq = np.empty(2 * n, dtype=np.int16)
         iq[0::2] = np.clip(x.real * 2048, -2047, 2047)
         iq[1::2] = np.clip(x.imag * 2048, -2047, 2047)
@@ -91,6 +96,7 @@ class FakeBoard(threading.Thread):
     def _serve(self, c):
         f = c.makefile("rwb")
         n_open = 0
+        cs8 = False
         while True:
             line = f.readline()
             if not line:
@@ -115,12 +121,13 @@ class FakeBoard(threading.Thread):
                 f.write(b"%d\n" % n)
             elif cmd == "OPEN":
                 n_open = int(w[2])
+                cs8 = bin(int(w[3], 16)).count("1") == 1
                 self.opens.append((w[1], n_open, w[3],
                                    self.attrs.get(("ad9361-phy", "altvoltage0", "frequency"))))
                 f.write(b"0\n")
             elif cmd == "READBUF":
                 want = int(w[2])
-                data = self.samples(want // 4)
+                data = self.samples(want // 2, True) if cs8 else self.samples(want // 4)
                 f.write(b"%d\n00000003\n" % len(data) + data)
             elif cmd == "CLOSE":
                 f.write(b"0\n")
@@ -154,6 +161,21 @@ class FakeDjiReceiver(threading.Thread):
 def check(cond, what):
     print(("  ok    " if cond else "  FAIL  ") + what)
     return bool(cond)
+
+
+def cs8_mode():
+    """--cs8 asks for the I channel alone, which tezuka fills with packed I8/Q8."""
+    board = FakeBoard()
+    board.start()
+    p = subprocess.run([sys.executable, os.path.join(HERE, "droneid_rx.py"),
+                        "--uri", f"ip:127.0.0.1:{board.port}", "--freqs", str(LIVE_MHZ),
+                        "--dwell", "0.6", "--duration", "3", "--json", "--buffer", "262144",
+                        "--cs8"], capture_output=True, text=True, timeout=120)
+    import json
+    frames = [json.loads(ln) for ln in p.stdout.splitlines() if ln.startswith("{")]
+    return check(p.returncode == 0 and board.opens and all(o[2] == "00000001" for o in board.opens)
+                 and frames and all(f["serial_number"] == "1WNBH3900201N1" for f in frames),
+                 f"--cs8 opens voltage0 alone and decodes 8-bit I/Q ({len(frames)} frames)")
 
 
 def main():
@@ -208,6 +230,7 @@ def main():
                     and abs(float(parts[7]) - 51.4463) < 1e-4
                     and abs(float(parts[12].split("|")[0]) * 10 - 42.97) < 0.01,
                     "the dji_O line has dji_receiver.py's 14 fields, in its units")
+    ok &= cs8_mode()
     ok &= file_mode()
     ok &= bench_mode()
     ok &= scan_mode()

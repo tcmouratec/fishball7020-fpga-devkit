@@ -82,9 +82,11 @@ ELRS_TUNES = {"2.4": [2405.0 + 10 * i for i in range(8)],          # 2400.4-2479
 
 
 def to_complex(iq: np.ndarray) -> np.ndarray:
-    """Interleaved int16 I/Q -> complex64 at +-1.0 full scale. Going through a
-    float32 view is ~8x faster than building I + jQ, which matters on a Pi."""
-    return (iq.astype(np.float32) * (1.0 / FULL_SCALE)).view(np.complex64)
+    """Interleaved int16 (or int8, see --cs8) I/Q -> complex64 at +-1.0 full
+    scale. Going through a float32 view is ~8x faster than building I + jQ,
+    which matters on a Pi."""
+    scale = 1.0 / (128.0 if iq.dtype == np.int8 else FULL_SCALE)
+    return (iq.astype(np.float32) * scale).view(np.complex64)
 
 
 def log(msg):
@@ -140,15 +142,18 @@ class Board(Iiod):
         except (OSError, ValueError):
             return float("nan")
 
-    def open_rx(self, nsamples, ch):
-        mask = mask_for([2 * ch, 2 * ch + 1], self.nscan)
+    def open_rx(self, nsamples, ch, cs8=False):
+        # tezuka firmware packs I8/Q8 into the I channel's 16-bit slot when Q
+        # is disabled; stock firmware would hand back I alone, so opt-in only.
+        mask = mask_for([2 * ch] if cs8 else [2 * ch, 2 * ch + 1], self.nscan)
         cmd = f"OPEN {self.did} {nsamples} {mask}"
         self._send(cmd)
         self._status(cmd)
         self.open_n = nsamples
 
     def read_rx(self, out: np.ndarray):
-        """Fill out (int16, 2 x open_n) with one buffer: one contiguous capture."""
+        """Fill out (int16 or, with cs8, int8; 2 x open_n) with one buffer: one
+        contiguous capture."""
         want = out.nbytes
         cmd = f"READBUF {self.did} {want}"
         self._send(cmd)
@@ -513,12 +518,12 @@ def board_reader(board, args, plan, work, stop, counters):
         for mhz, kind, dwell, nbuf in plan:
             if stop.is_set():
                 return
-            buf = bufs.setdefault(nbuf, np.empty(2 * nbuf, dtype=np.int16))
+            buf = bufs.setdefault(nbuf, np.empty(2 * nbuf, dtype=np.int8 if args.cs8 else np.int16))
             try:
                 got = board.tune(mhz * 1e6)
                 # A retune reaches the samples only through a fresh buffer: the
                 # old one still holds samples from the previous channel.
-                board.open_rx(nbuf, args.rx_channel)
+                board.open_rx(nbuf, args.rx_channel, args.cs8)
                 gain = board.gain_db(args.rx_channel)
                 end = time.monotonic() + dwell
                 first = True
@@ -646,6 +651,8 @@ def main():
     rf.add_argument("--bandwidth", type=float, default=10e6, help="analog bandwidth (default 10e6)")
     rf.add_argument("--rx-channel", type=int, choices=(0, 1), default=0, help="RX1 (0) or RX2 (1)")
     rf.add_argument("--buffer", type=int, default=1 << 20, help="samples per buffer (default 1 Mi)")
+    rf.add_argument("--cs8", action="store_true",
+                    help="8-bit I/Q, half the network traffic (tezuka firmware only)")
     out = ap.add_argument_group("output")
     out.add_argument("--json", action="store_true", help="one JSON object per frame on stdout")
     out.add_argument("--dji-receiver", metavar="HOST:PORT",

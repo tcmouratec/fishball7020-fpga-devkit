@@ -35,6 +35,20 @@ def record(serial="1WNBH3900201N1", lat=51.4463, lon=7.2672, seq=591):
     return bytes(raw)
 
 
+def logical(body: bytes) -> bytes:
+    """A logical packet: length-3 byte, then body, then the DJI CRC-16."""
+    pkt = bytes([len(body)]) + body        # total = 1 + body + 2, so byte 0 = total - 3
+    return pkt + struct.pack("<H", o.crc16_droneid(pkt))
+
+
+def o4_packet(marker: bytes, hashcode: bytes, total: int) -> bytes:
+    """A synthetic O4 packet with the published layout: type, marker, session
+    hashcode, an opaque (random) body, CRC-16; `total` bytes long."""
+    t = 0x13 if marker == b"CRYP" else 0x10
+    body = bytes([t]) + marker + hashcode + RNG.integers(0, 256, total - 12, dtype=np.uint8).tobytes()
+    return logical(body)
+
+
 def codeword(rec: bytes) -> bytes:
     body = rec.ljust(173, b"\0")
     c = o.crc24a(body)
@@ -112,6 +126,23 @@ def main(sweep=False):
     ok &= check(d["serial_number"] == "1WNBH3900201N1" and abs(d["latitude"] - 51.4463) < 1e-5
                 and d["product"] == "Mavic Air 2" and d["altitude_m"] == 42.97,
                 "fields: serial, latitude, product, altitude in feet -> metres")
+
+    print("other message types")
+    h = bytes.fromhex("1a2b3c4d")
+    cases = [("CRYP", o4_packet(b"CRYP", h, 173)), ("INFP", o4_packet(b"INFP", h, 138)),
+             ("serial", logical(b"\x11" + b"1WNBH3900201N1".ljust(16, b"\0") + bytes(124)))]
+    ok &= check(cases[0][1][0] == 0xAA and cases[1][1][0] == 0x87,
+                "CRYP and INFP start with 0xAA and 0x87, as the published captures do")
+    for name, pkt in cases:
+        fr = list(o.Receiver(11.52e6).process(channel(burst(codeword(pkt), 11.52e6), 11.52e6, 20)))
+        d = fr[0].as_dict() if fr else {}
+        if name == "serial":
+            good = d.get("serial_number") == "1WNBH3900201N1" and d.get("content") == "serial number"
+        else:
+            good = (d.get("generation") == "O4" and d.get("marker") == name
+                    and d.get("hashcode") == "1a2b3c4d")
+        ok &= check(len(fr) == 1 and fr[0].record_crc_ok and good,
+                    f"{name} ({len(pkt)} bytes): decoded, CRC-16 checked, identified")
 
     print("no false alarms")
     rx = o.Receiver(11.52e6)

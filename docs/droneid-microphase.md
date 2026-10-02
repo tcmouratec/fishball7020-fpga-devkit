@@ -233,8 +233,15 @@ What is **not yet measured**, because it needs the board, the Pi and a drone:
   (2399.5–2459.5 MHz). 5.8 GHz adds the centres MicroPhase's decoder tunes to.
   Up to ±1.2 MHz of offset is found and corrected automatically.
 
-Not reachable on any route: **O4** (DJI Mini 5 and later) is encrypted.
-MicroPhase's O4 decoder reports only a hash, frequency and RSSI.
+**O4** (DJI Mini 5 Pro and later) uses the same radio layer, so its bursts
+decode and pass both CRCs. The contents are encrypted
+([luyii-code-1/dji-ocusync-droneid-research](https://github.com/luyii-code-1/dji-ocusync-droneid-research)):
+- `CRYP` packets carry an SM2-wrapped AES key;
+- `INFP` packets carry the AES-CTR telemetry.
+
+The receiver reports the session hashcode the two share, with frequency and
+level, which is what MicroPhase's O4 decoder reports too. Decrypting it needs
+a private key that is not public.
 
 If the network turns out to be the limit, on-board capture reaches
 183–220 MB/s. The detector in `ocusync.py` could then run on the board's ARM

@@ -20,7 +20,9 @@ long, sent every ~600 ms on one of a handful of channels in 2.4 and 5.8 GHz:
   - the other six carry QPSK: 7200 bits, scrambled with LTE's Gold sequence
     (c_init 0x12345678), which hold one LTE turbo codeword (K = 1408 bits,
     rate matching with rv 0) of 176 bytes ending in a CRC-24A
-  - inside it, a 91-byte DroneID record with its own CRC-16
+  - inside it, a "logical packet" with its own CRC-16: on O2/O3 drones a
+    91-byte plaintext flight record; on O4 drones (Mini 5 Pro and later)
+    encrypted CRYP/INFP packets, of which only a session hashcode is readable
 
 Sources, none of which is copied here: the NDSS 2023 paper "Drone Security and
 the Mysterious Case of DJI's DroneID" (Schiller et al.), proto17/dji_droneid
@@ -370,7 +372,7 @@ PRODUCT_TYPES = {
     51: "Mavic 2 Enterprise", 53: "Mavic Mini", 58: "Mavic Air 2", 59: "P4M",
     60: "M300 RTK", 61: "DJI FPV", 63: "Mini 2", 64: "AGRAS T10", 65: "AGRAS T30",
     66: "Air 2S", 67: "M30", 68: "Mavic 3", 69: "Mavic 2 Enterprise Advanced",
-    70: "Mini SE",
+    70: "Mini SE", 112: "Mini 5 Pro",
 }
 
 RECORD = struct.Struct("<BBBHH16siihhhhhhQiiiiBB20sH")   # 91 bytes
@@ -381,7 +383,7 @@ DEG = 174533.0                  # position words are radians x 1e7
 class Frame:
     """One decoded DroneID frame."""
     raw: bytes                      # the 176-byte turbo codeword payload
-    record_crc_ok: object            # True/False for telemetry, None for other types
+    record_crc_ok: bool              # the logical packet's DJI CRC-16
     fields: dict
     sample_index: int = 0           # where in the input the burst started
     cfo_hz: float = 0.0
@@ -399,43 +401,73 @@ class Frame:
         return d
 
 
-TELEMETRY = 0x10
+# What sits inside the 176-byte codeword is a "logical packet": byte 0 is its
+# length minus 3, byte 1 its message type, and the DJI CRC-16 run over the
+# whole packet, its own CRC included, leaves zero.
+TELEMETRY = 0x10        # O2/O3 flight record, plaintext (layout below)
+SERIAL = 0x11           # serial-number frame (seen from a Mavic Air 2)
+# O4 packets carry an ASCII marker in bytes 2-5 and a 4-byte session hashcode
+# in 6-9. INFP also uses message type 0x10, so the marker, not the type,
+# tells it from O2/O3 telemetry. (The research names them "AA" and "87"
+# after their first byte, which is the length: 0xAA + 3 = 173, 0x87 + 3 = 138.)
+O4_MARKERS = {b"CRYP": "session key (SM2-wrapped)", b"INFP": "telemetry (AES-128-CTR)"}
 
 
 def parse_record(raw: bytes) -> tuple:
-    """(fields, crc_ok) from the start of a payload.
+    """(fields, crc_ok) for the logical packet at the start of a payload.
 
-    Only message type 0x10, the flight-telemetry record, has a known layout.
-    Its field order and scaling follow the NDSS 2023 receiver, which was
-    checked against flight logs: altitude before height, home longitude before
-    home latitude, both heights in feet. The Kismet parser names some of these
-    in the other order; on the published captures only this order puts the
-    home point next to the drone.
+    crc_ok is the DJI CRC-16 over the packet's declared length.
 
-    Other types do occur (a Mavic Air 2 capture carries a type 0x11 frame
-    holding its serial number right after the type byte); they are returned
-    with their type, the bytes, and any serial-looking text, and crc_ok None,
-    because their own checksum is not known."""
-    if raw[1] != TELEMETRY:
+    0x10 telemetry: field order and scaling follow the NDSS 2023 receiver,
+    which was checked against flight logs: altitude before height, home
+    longitude before home latitude, both heights in feet. The Kismet parser
+    names some of these in the other order; on the published captures only
+    this order puts the home point next to the drone.
+
+    CRYP / INFP, O4 (Mini 5 Pro and later): encrypted. What can be read is the
+    ASCII marker (CRYP / INFP) and a 4-byte session hashcode the two share,
+    which identifies one drone for one power-on: the same thing MicroPhase's
+    O4 decoder reports. The layout is from luyii-code-1/dji-ocusync-droneid-
+    research (verified there on a Mini 5 Pro). Decrypting INFP needs the
+    session key, which is wrapped with a private key that is not public, so
+    nothing here tries.
+
+    Anything else is returned with its type, its bytes and any serial-looking
+    text."""
+    length = raw[0] + 3
+    crc_ok = 4 <= length <= len(raw) and crc16_droneid(raw[:length]) == 0
+    t = raw[1]
+    marker = bytes(raw[2:6])
+    f = {"msg_type": t, "pkt_len": length}
+    if marker in O4_MARKERS:
+        f.update({
+            "marker": marker.decode(), "content": O4_MARKERS[marker],
+            "hashcode": raw[6:10].hex(),
+            "generation": "O4", "encrypted": True,
+            "product": "DJI O4 (encrypted)",
+        })
+        if marker == b"INFP":
+            f["nonce"] = raw[10:18].hex()
+    elif t == TELEMETRY and length >= RECORD.size:
+        v = RECORD.unpack(raw[:RECORD.size])
+        f.update({
+            "version": v[2], "sequence_number": v[3], "state_info": v[4],
+            "serial_number": v[5].split(b"\0")[0].decode("ascii", "replace"),
+            "longitude": v[6] / DEG, "latitude": v[7] / DEG,
+            "altitude_m": round(v[8] / 3.281, 2), "height_m": round(v[9] / 3.281, 2),
+            "v_north_cms": v[10], "v_east_cms": v[11], "v_up_cms": v[12],
+            "yaw_deg": round(v[13] / 100.0, 2), "gps_time_ms": v[14],
+            "app_latitude": v[15] / DEG, "app_longitude": v[16] / DEG,
+            "home_longitude": v[17] / DEG, "home_latitude": v[18] / DEG,
+            "product_type": v[19], "product": PRODUCT_TYPES.get(v[19], f"unknown ({v[19]})"),
+            "uuid": v[21][:v[20]].decode("ascii", "replace") if v[20] <= 20 else "",
+            "generation": "O2/O3", "encrypted": False,
+        })
+    else:
         m = re.match(rb"[0-9A-Z]{8,20}", raw[2:22])
-        f = {"msg_type": raw[1], "serial_number": m.group().decode() if m else "",
-             "raw_hex": raw[:32].hex()}
-        return f, None
-    v = RECORD.unpack(raw[:RECORD.size])
-    crc_ok = crc16_droneid(raw[:RECORD.size - 2]) == v[22]
-    f = {
-        "pkt_len": v[0], "msg_type": v[1], "version": v[2],
-        "sequence_number": v[3], "state_info": v[4],
-        "serial_number": v[5].split(b"\0")[0].decode("ascii", "replace"),
-        "longitude": v[6] / DEG, "latitude": v[7] / DEG,
-        "altitude_m": round(v[8] / 3.281, 2), "height_m": round(v[9] / 3.281, 2),
-        "v_north_cms": v[10], "v_east_cms": v[11], "v_up_cms": v[12],
-        "yaw_deg": round(v[13] / 100.0, 2), "gps_time_ms": v[14],
-        "app_latitude": v[15] / DEG, "app_longitude": v[16] / DEG,
-        "home_longitude": v[17] / DEG, "home_latitude": v[18] / DEG,
-        "product_type": v[19], "product": PRODUCT_TYPES.get(v[19], f"unknown ({v[19]})"),
-        "uuid": v[21][:v[20]].decode("ascii", "replace") if v[20] <= 20 else "",
-    }
+        f.update({"serial_number": m.group().decode() if m else "",
+                  "content": "serial number" if t == SERIAL else "unknown",
+                  "raw_hex": raw[:min(length, 32)].hex()})
     return f, crc_ok
 
 

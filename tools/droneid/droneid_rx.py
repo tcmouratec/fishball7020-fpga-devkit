@@ -210,10 +210,18 @@ class DjiReceiverSink:
     def line(d):
         """The dji_O CSV dji_receiver.py parses (parse_new_fw_line).
 
-        It multiplies the first height field by 10 and divides speeds by 100,
-        so altitude goes out in tens of metres and speeds in cm/s, which is
-        what the record carries. The protocol field is left empty: a DroneID
-        frame does not say whether the link is OcuSync 2 or 3."""
+        Plaintext telemetry: it multiplies the first height field by 10 and
+        divides speeds by 100, so altitude goes out in tens of metres and
+        speeds in cm/s, which is what the record carries. The protocol field
+        is left empty: a DroneID frame does not say whether the link is
+        OcuSync 2 or 3.
+
+        O4: protocol 4 and "dji(<session hash>)" with no serial, exactly the
+        shape MicroPhase's O4 firmware sends, which dji_receiver.py turns into
+        "drone-alert-<hash>" / "DJI Encrypted (O4)" at the sensor's position."""
+        if d.get("generation") == "O4":
+            return ("dji_O,4,{f:.1f},{r},dji({h}),,0.0,0.0,0.0,0.0,0.0,0.0,0|0,0|0|0;\n").format(
+                f=d["freq_mhz"], r=int(round(d.get("rssi_db", 0))), h=int(d["hashcode"], 16))
         model = f"{d.get('product', 'DJI')}({d.get('product_type', 0)})"
         return ("dji_O,,{f:.1f},{r},{m},{sn},{lon:.7f},{lat:.7f},{plon:.7f},{plat:.7f},"
                 "{hlon:.7f},{hlat:.7f},{alt:.3f}|{h:.2f},{ve}|{vn}|{vu};\n").format(
@@ -226,10 +234,14 @@ class DjiReceiverSink:
             ve=d.get("v_east_cms", 0), vn=d.get("v_north_cms", 0), vu=d.get("v_up_cms", 0))
 
     def emit(self, d):
-        if d.get("msg_type") != ocusync.TELEMETRY:
-            if not (self.id_only and d.get("serial_number")):
-                return
-        elif not d.get("record_crc_ok"):
+        """Send what dji_receiver.py can use: CRC-valid plaintext telemetry and
+        O4 detections always; serial-only frames with --report-id-only, since
+        they carry no position and would land at 0,0."""
+        if not d.get("record_crc_ok"):
+            return
+        if d.get("generation") in ("O2/O3", "O4"):
+            pass
+        elif not (self.id_only and d.get("serial_number")):
             return
         if self._send(self.line(d)):
             self.sent += 1
@@ -344,14 +356,18 @@ def frame_dict(frame, freq_mhz, gain_db):
 
 
 def describe(d):
-    if d.get("msg_type") != ocusync.TELEMETRY:
-        return (f"{d['freq_mhz']:.1f} MHz  type 0x{d['msg_type']:02x} frame"
-                f"  serial {d.get('serial_number') or '?'}  SNR {d['snr_db']:.0f} dB")
-    pos = (f"{d['latitude']:.5f},{d['longitude']:.5f}" if d["latitude"] or d["longitude"]
-           else "no GPS fix")
-    crc = "" if d["record_crc_ok"] else "  RECORD CRC FAILED"
-    return (f"{d['freq_mhz']:.1f} MHz  {d['product']}  {d['serial_number']}  {pos}"
-            f"  alt {d['altitude_m']:.0f} m  SNR {d['snr_db']:.0f} dB  {d['decoder']}{crc}")
+    crc = "" if d.get("record_crc_ok") else "  RECORD CRC FAILED"
+    t = d.get("msg_type")
+    if d.get("generation") == "O2/O3":
+        pos = (f"{d['latitude']:.5f},{d['longitude']:.5f}" if d["latitude"] or d["longitude"]
+               else "no GPS fix")
+        return (f"{d['freq_mhz']:.1f} MHz  {d['product']}  {d['serial_number']}  {pos}"
+                f"  alt {d['altitude_m']:.0f} m  SNR {d['snr_db']:.0f} dB  {d['decoder']}{crc}")
+    if d.get("generation") == "O4":
+        return (f"{d['freq_mhz']:.1f} MHz  DJI O4 (encrypted)  {d['marker']}  session "
+                f"{d['hashcode']}  SNR {d['snr_db']:.0f} dB{crc}")
+    return (f"{d['freq_mhz']:.1f} MHz  type 0x{t:02x} frame"
+            f"  serial {d.get('serial_number') or '?'}  SNR {d['snr_db']:.0f} dB{crc}")
 
 
 def main():
@@ -378,7 +394,7 @@ def main():
     out.add_argument("--dji-receiver", metavar="HOST:PORT",
                      help="send dji_O lines to dji_receiver.py, e.g. 127.0.0.1:52002")
     out.add_argument("--report-id-only", action="store_true",
-                     help="also send frames that carry a serial but no telemetry")
+                     help="also send frames that carry a serial but no position (they land at 0,0)")
     out.add_argument("--save-failed", metavar="DIR",
                      help="save the IQ of bursts that were found but did not decode")
     out.add_argument("--stats", type=float, default=60, help="seconds between stats lines")

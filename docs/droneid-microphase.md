@@ -31,7 +31,7 @@ each finding.
 
 | | Source | Notes |
 |---|---|---|
-| MicroPhase image | `build_sdimg_drone_net.zip` in [alphafox02/antsdr_dji_droneid](https://github.com/alphafox02/antsdr_dji_droneid) | Its `devicetree.dtb` (md5 `a9543ff5…`) and `uEnv.txt` (md5 `f492fc67…`) are **identical** to the `build_sdimg_DG.zip` image tested on hardware. Its `BOOT.bin` is a different build, so re-run `ps7diff` on the DG `BOOT.bin` to confirm (one command, below) |
+| MicroPhase image | `build_sdimg_DG.zip`, the image tested on hardware (`BOOT.bin` md5 `311426ba…`), and `build_sdimg_drone_net.zip` from [alphafox02/antsdr_dji_droneid](https://github.com/alphafox02/antsdr_dji_droneid) | Same FSBL (md5 `f42bcb1b…`), same bitstream (md5 `3d4fe2a4…`), same `devicetree.dtb` and `uEnv.txt`. Only U-Boot's build date and the `done_dji_release` build differ; both U-Boots write to `serial@e0000000`, and both decoders open the same two devices |
 | MicroPhase O4 image | `build_sdimg_drone_o4.zip`, same repository | Same FSBL DDR set-up and console pins as the image above |
 | Factory firmware | [v1.7 release](https://github.com/matsvandamme/fishball7020-fpga-devkit/releases/tag/v1.7) `BOOT.bin`, `devicetree.dtb`, `system_top.xsa` | Its `ps7_init.c` (inside the XSA) was used to check the decoder |
 | E200 pin map | [MicroPhase/antsdr-fw-patch](https://github.com/MicroPhase/antsdr-fw-patch), `patch/0001-add-three-ant-hdl-support-bump-to-v0.39-v1.patch`, file `projects/e200/system_constr.xdc` | MicroPhase's own HDL project for the E200 |

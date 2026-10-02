@@ -22,6 +22,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import test_fpv as F                                                 # noqa: E402
 import test_ocusync as T                                             # noqa: E402
 
 RATE = 11.52e6
@@ -55,6 +56,9 @@ class FakeBoard(threading.Thread):
             O4_MHZ: (0.25 * T.burst(T.codeword(o4), RATE)).astype(np.complex64),
         }
         self.rng = np.random.default_rng(1)
+        # continuous emitters: {tuned MHz: complex baseband loop at RATE}
+        self.loops = {}
+        self.loop_pos = 0
 
     def run(self):
         while True:
@@ -64,6 +68,11 @@ class FakeBoard(threading.Thread):
     def samples(self, n):
         x = 0.01 * (self.rng.standard_normal(n) + 1j * self.rng.standard_normal(n))
         lo = float(self.attrs.get(("ad9361-phy", "altvoltage0", "frequency"), 0))
+        for mhz, loop in self.loops.items():
+            if abs(lo - mhz * 1e6) < 1:
+                idx = (self.loop_pos + np.arange(n)) % len(loop)
+                x = x + loop[idx]
+                self.loop_pos += n
         for mhz, b in self.bursts.items():
             if abs(lo - mhz * 1e6) < 1:
                 for at in range(5000, n - len(b), 300000):
@@ -201,6 +210,7 @@ def main():
                     "the dji_O line has dji_receiver.py's 14 fields, in its units")
     ok &= file_mode()
     ok &= bench_mode()
+    ok &= scan_mode()
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1
 
@@ -262,9 +272,111 @@ def bench_mode():
         import json
         frames = [json.loads(ln) for ln in open(jl)] if os.path.exists(jl) else []
     got = {(f["channel_mhz"], f.get("generation")) for f in frames}
-    return check(p.returncode == 0 and got == {(2429.5, "O2/O3"), (2414.5, "O4")}
-                 and len(frames) == 2,
-                 f"bench.py channelizes a 60 MSPS recording: {sorted(got)}")
+    ok = check(p.returncode == 0 and got == {(2429.5, "O2/O3"), (2414.5, "O4")}
+               and len(frames) == 2,
+               f"bench.py channelizes a 60 MSPS recording: {sorted(got)}")
+    # a 5.8 GHz recording with a PAL VTX on R5 (5806), and a 2.4 GHz one with ExpressLRS
+    rng = np.random.default_rng(6)
+    with tempfile.TemporaryDirectory() as d:
+        v = F.fm(F.composite(11.52e6, "PAL", 0.6), 11.52e6, 3e6, 0, cnr_db=20)
+        v = resample_poly(v, 625, 120)                                  # 11.52 -> 60 MSPS
+        t = np.arange(len(v)) / fs
+        x = v * np.exp(2j * np.pi * (5806e6 - 5790e6) * t) * 0.3
+        x = x + 0.01 * (rng.standard_normal(len(x)) + 1j * rng.standard_normal(len(x)))
+        vp = os.path.join(d, "vtx.dat")
+        x.astype(np.complex64).tofile(vp)
+        lp = os.path.join(d, "elrs.dat")
+        F.lora_packets(fs, 812500, 6, 0.6, 0.004, [-20e6, -7e6, 3e6, 18e6]).tofile(lp)
+        rv = subprocess.run([sys.executable, os.path.join(HERE, "bench.py"), "--format", "cf32",
+                             "--rate", "60e6", "--center-mhz", "5790", "--detect", "video", vp],
+                            capture_output=True, text=True, timeout=300)
+        rl = subprocess.run([sys.executable, os.path.join(HERE, "bench.py"), "--format", "cf32",
+                             "--rate", "60e6", "--center-mhz", "2440", "--detect", "elrs", lp],
+                            capture_output=True, text=True, timeout=300)
+    ok &= check(rv.returncode == 0 and "VIDEO PAL R5 5806" in rv.stdout,
+                "bench.py --detect video finds the PAL VTX on R5 in a 60 MSPS recording")
+    ok &= check(rl.returncode == 0 and "812.5 kHz SF6 hopping" in rl.stdout,
+                "bench.py --detect elrs finds hopping 812.5 kHz SF6 in a 60 MSPS recording")
+    if not ok:
+        print(rv.stdout, rv.stderr[-800:], rl.stdout, rl.stderr[-800:])
+    return ok
+
+
+
+class FakeDragonScope(threading.Thread):
+    """Answers /api/o4online/decrypt the way dragonscope.py relays a licensed
+    reply, and remembers what it was asked."""
+
+    def __init__(self):
+        super().__init__(daemon=True)
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        asked = self.asked = []
+
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                from urllib.parse import urlparse, parse_qs
+                q = parse_qs(urlparse(self.path).query)
+                asked.append(q.get("hex", [""])[0])
+                body = b'{"sn": "1581F9TEST0001", "lat": "-12.9714", "lon": "-38.5014"}'
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+        self.srv = HTTPServer(("127.0.0.1", 0), H)
+        self.port = self.srv.server_address[1]
+
+    def run(self):
+        self.srv.serve_forever()
+
+
+def scan_mode():
+    """--scan video,elrs,droneid against a board with an analog VTX on R4
+    (5769 MHz), an ExpressLRS link hopping near 2435 MHz and an O4 drone on
+    2414.5 MHz, with a DragonScope that knows the O4 drone."""
+    import json
+    board, dji, scope = FakeBoard(), FakeDjiReceiver(), FakeDragonScope()
+    video = F.fm(F.composite(RATE, "PAL", 0.1), RATE, 3e6, 4e6) * 0.3          # 5765 + 4 = 5769
+    elrs = F.lora_packets(RATE, 812500, 6, 0.1, 0.004, [-4e6, -1e6, 2e6, 4.5e6]) * 0.3
+    board.loops = {5765.0: video.astype(np.complex64), 2435.0: elrs.astype(np.complex64)}
+    for t in (board, dji, scope):
+        t.start()
+    cmd = [sys.executable, os.path.join(HERE, "droneid_rx.py"),
+           "--uri", f"ip:127.0.0.1:{board.port}", "--scan", "video,elrs,droneid",
+           "--video-bands", "5750-5790", "--elrs-bands", "2.4", "--freqs", str(O4_MHZ),
+           "--dwell", "0.6", "--duration", "8", "--json", "--alert-interval", "1",
+           "--dji-receiver", f"127.0.0.1:{dji.port}",
+           "--dragonscope", f"http://127.0.0.1:{scope.port}"]
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    out = [json.loads(ln) for ln in p.stdout.splitlines() if ln.startswith("{")]
+    vids = [o for o in out if o.get("kind") == "analog_video"]
+    loras = [o for o in out if o.get("kind") == "lora"]
+    ok = check(p.returncode == 0, "scan of video + ExpressLRS + DroneID exits cleanly")
+    if p.returncode:
+        print(p.stderr[-2000:])
+    ok &= check(vids and all(v["channel"] == "R4 5769" and v["standard"] == "PAL" for v in vids),
+                f"analog video found on R4 5769, PAL ({len(vids)} alerts)")
+    ok &= check(loras and all(abs(l_["tuned_mhz"] - 2435) < 0.1 and l_["elrs"] for l_ in loras),
+                f"ExpressLRS found at 2435 and nowhere else ({len(loras)} alerts)")
+    o4 = [o for o in out if o.get("generation") == "O4"]
+    dec = [o for o in o4 if o.get("decrypted")]
+    ok &= check(o4 and scope.asked and all(h.startswith("8710494e4650") and len(h) == 2 * 138
+                                           for h in scope.asked),
+                "DragonScope is asked with the 138-byte INFP packet as hex")
+    ok &= check(dec and dec[0]["serial_number"] == "1581F9TEST0001"
+                and abs(dec[0]["latitude"] + 12.9714) < 1e-6,
+                "its answer comes back as a decrypted O4 frame with serial and position")
+    time.sleep(0.5)
+    lines = [ln.rstrip(";").split(",") for ln in dji.lines if ln.startswith("dji_O,")]
+    alerts = {pt[5] for pt in lines if pt[5].startswith("drone-alert-")}
+    ok &= check({"drone-alert-fpv-video-R4", "drone-alert-elrs-2.4"} <= alerts,
+                f"dji_receiver gets drone-alert ids for both: {sorted(alerts)}")
+    o4d = [pt for pt in lines if pt[1] == "4" and pt[5] == "1581F9TEST0001"]
+    ok &= check(o4d and abs(float(o4d[0][7]) + 12.9714) < 1e-4,
+                "and the decrypted O4 drone as protocol 4 with serial and latitude")
+    return ok
 
 
 if __name__ == "__main__":

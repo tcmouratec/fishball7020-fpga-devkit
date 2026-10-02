@@ -53,6 +53,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "selftest"))
+import fpv                                                           # noqa: E402
 import ocusync                                                       # noqa: E402
 from iiod_min import Iiod, IiodError, mask_for                       # noqa: E402
 
@@ -67,6 +68,17 @@ BANDS = {
     "2.4": [2399.5, 2414.5, 2429.5, 2444.5, 2459.5],
     "5.8": [5736.5, 5756.5, 5776.5, 5796.5, 5816.5],
 }
+
+# Analog FPV video: ranges swept in 10 MHz steps (MHz). 5.8 GHz is every
+# standard band (A/B/E/F/R) plus margin; 1.2 GHz the common 1080-1360 set;
+# 3.3 GHz the 3.1-3.5 GHz range low-band VTXs are sold for. "L" (5362-5621)
+# is in the 5.8 range of some goggles; add it with --video-bands 5.3.
+VIDEO_RANGES = {"5.8": (5640, 5950), "5.3": (5355, 5630), "1.2": (1075, 1365),
+                "3.3": (3100, 3500)}
+# ExpressLRS: tuning points whose ~11 MHz windows cover each hopping domain.
+ELRS_TUNES = {"2.4": [2405.0 + 10 * i for i in range(8)],          # 2400.4-2479.4
+              "915": [909.3, 920.9],                                # FCC915 903.5-926.9
+              "868": [866.4]}                                       # EU868 863.3-869.6
 
 
 def to_complex(iq: np.ndarray) -> np.ndarray:
@@ -220,18 +232,32 @@ class DjiReceiverSink:
         shape MicroPhase's O4 firmware sends, which dji_receiver.py turns into
         "drone-alert-<hash>" / "DJI Encrypted (O4)" at the sensor's position."""
         if d.get("generation") == "O4":
-            return ("dji_O,4,{f:.1f},{r},dji({h}),,0.0,0.0,0.0,0.0,0.0,0.0,0|0,0|0|0;\n").format(
-                f=d["freq_mhz"], r=int(round(d.get("rssi_db", 0))), h=int(d["hashcode"], 16))
-        model = f"{d.get('product', 'DJI')}({d.get('product_type', 0)})"
-        return ("dji_O,,{f:.1f},{r},{m},{sn},{lon:.7f},{lat:.7f},{plon:.7f},{plat:.7f},"
+            # serial and positions exist only after a DragonScope lookup
+            proto, model = "4", f"dji({int(d['hashcode'], 16)})"
+            sn = d.get("serial_number", "") if d.get("decrypted") else ""
+        else:
+            proto = ""
+            model = f"{d.get('product', 'DJI')}({d.get('product_type', 0)})"
+            sn = d.get("serial_number", "")
+        return ("dji_O,{p},{f:.1f},{r},{m},{sn},{lon:.7f},{lat:.7f},{plon:.7f},{plat:.7f},"
                 "{hlon:.7f},{hlat:.7f},{alt:.3f}|{h:.2f},{ve}|{vn}|{vu};\n").format(
-            f=d["freq_mhz"], r=int(round(d.get("rssi_db", 0))), m=model.replace(",", " "),
-            sn=d.get("serial_number", "").replace(",", " "),
+            p=proto, f=d["freq_mhz"], r=int(round(d.get("rssi_db", 0))), m=model.replace(",", " "),
+            sn=sn.replace(",", " "),
             lon=d.get("longitude", 0.0), lat=d.get("latitude", 0.0),
             plon=d.get("app_longitude", 0.0), plat=d.get("app_latitude", 0.0),
             hlon=d.get("home_longitude", 0.0), hlat=d.get("home_latitude", 0.0),
             alt=d.get("altitude_m", 0.0) / 10.0, h=d.get("height_m", 0.0),
             ve=d.get("v_east_cms", 0), vn=d.get("v_north_cms", 0), vu=d.get("v_up_cms", 0))
+
+    def alert(self, d):
+        """An FPV video or LoRa/ExpressLRS detection, as a dji_O line that
+        dji_receiver.py files as a "drone-alert-..." and places at the
+        sensor's own position (it does that for any id starting with
+        drone-alert). The model field carries what was detected."""
+        if self._send(("dji_O,,{f:.1f},{r},{m}(0),drone-alert-{tag},0.0,0.0,0.0,0.0,0.0,0.0,"
+                       "0|0,0|0|0;\n").format(f=d["freq_mhz"], r=int(round(d.get("rssi_db", 0))),
+                                               m=d["label"].replace(",", " "), tag=d["tag"])):
+            self.sent += 1
 
     def emit(self, d):
         """Send what dji_receiver.py can use: CRC-valid plaintext telemetry and
@@ -247,9 +273,92 @@ class DjiReceiverSink:
             self.sent += 1
 
 
+class DragonScope:
+    """Ask a DragonScope proxy to decrypt O4 packets.
+
+    DragonScope is CEMAXecuter's licensed O4 service for WarDragon kits: a
+    proxy on the WarDragon (dragonscope.py, port 80) forwards a packet's hex
+    to their remote service, which answers with the drone's serial and
+    position. MicroPhase's DragonScope firmware sends it every CRYP/INFP packet
+    it receives; this sends the same packets, the logical packet as hex, to
+    GET /api/o4online/decrypt?hex=. Without a license the proxy answers
+    {"sn": ""} and nothing changes. This is a client only: the decryption,
+    and the key that makes it possible, are DragonScope's.
+
+    The reply's field names are taken from dragonscope.py (sn, lat, lon) and
+    dji_receiver.py's proxy code; anything else in the reply is ignored."""
+
+    KEYS = {"serial_number": ("sn", "serial"),
+            "latitude": ("lat", "drone_lat", "latitude"),
+            "longitude": ("lon", "drone_lon", "longitude"),
+            "app_latitude": ("pilot_lat", "app_lat"), "app_longitude": ("pilot_lon", "app_lon"),
+            "home_latitude": ("home_lat",), "home_longitude": ("home_lon",),
+            "altitude_m": ("alt", "altitude"), "height_m": ("height_agl", "height")}
+
+    def __init__(self, url, on_result, interval=1.0):
+        self.url = url.rstrip("/")
+        self.on_result = on_result
+        self.interval = interval
+        self.q = queue.Queue(maxsize=32)
+        self.last = {}
+        self.asked = self.answered = 0
+        self.warned = 0.0
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def submit(self, d):
+        key = (d["hashcode"], d["marker"])
+        now = time.monotonic()
+        if now - self.last.get(key, -1e9) < self.interval:
+            return
+        self.last[key] = now
+        try:
+            self.q.put_nowait(dict(d))
+        except queue.Full:
+            pass
+
+    @classmethod
+    def fields(cls, reply):
+        out = {}
+        for ours, theirs in cls.KEYS.items():
+            for k in theirs:
+                v = reply.get(k)
+                if v in (None, ""):
+                    continue
+                if ours == "serial_number":
+                    out[ours] = str(v)
+                else:
+                    try:
+                        out[ours] = float(v)
+                    except (TypeError, ValueError):
+                        continue
+                break
+        return out
+
+    def _run(self):
+        import urllib.request
+        while True:
+            d = self.q.get()
+            url = f"{self.url}/api/o4online/decrypt?hex={d['packet_hex']}"
+            try:
+                with urllib.request.urlopen(url, timeout=20) as r:
+                    reply = json.loads(r.read() or b"{}")
+            except Exception as e:                       # noqa: BLE001 - any network failure
+                if time.monotonic() - self.warned > 60:
+                    log(f"DragonScope at {self.url} did not answer ({e})")
+                    self.warned = time.monotonic()
+                continue
+            self.asked += 1
+            got = self.fields(reply if isinstance(reply, dict) else {})
+            if got.get("serial_number"):
+                self.answered += 1
+                d.update(got)
+                d["decrypted"] = True
+                self.on_result(d)
+
+
 # --------------------------------------------------------------- sources
-def file_source(path, rate, fmt, freq_mhz, chunk):
-    """Yield (freq_mhz, gain_db, complex64 chunk) from a recording."""
+def file_source(path, rate, fmt, freq_mhz, chunk, kind="droneid"):
+    """Yield (freq_mhz, gain_db, complex64 chunk, kind) from a recording."""
     meta = None
     if path.endswith(".sigmf-meta") or path.endswith(".sigmf-data"):
         base = path.rsplit(".", 1)[0]
@@ -271,7 +380,8 @@ def file_source(path, rate, fmt, freq_mhz, chunk):
     step = chunk if fmt == "cf32" else 2 * chunk
     resample = None
     try:
-        ocusync.Numerology.for_rate(rate)
+        if kind == "droneid":           # the other detectors take any rate
+            ocusync.Numerology.for_rate(rate)
         out_rate = rate
     except ValueError:
         out_rate = 15.36e6 if rate >= 15.36e6 else 11.52e6
@@ -290,32 +400,72 @@ def file_source(path, rate, fmt, freq_mhz, chunk):
             c = to_complex(c)
         if resample:
             c = resample[0](c, resample[1], resample[2]).astype(np.complex64)
-        yield (freq_mhz or 0.0, 0.0, c)
+        yield (freq_mhz or 0.0, 0.0, c, kind)
+
+
+def build_plan(args):
+    """[(MHz, kind, dwell s, buffer samples)] for one sweep.
+
+    DroneID needs a long dwell (a burst every ~600 ms) and a big buffer; video
+    is continuous, so a short dwell and buffer find it; ExpressLRS sends a
+    packet every 2-40 ms, so a quarter second catches several."""
+    kinds = set(args.scan.split(","))
+    bad = kinds - {"droneid", "video", "elrs"}
+    if bad:
+        raise ValueError(f"--scan: unknown {', '.join(sorted(bad))}")
+    plan = []
+    if "droneid" in kinds:
+        freqs = ([float(f) for f in args.freqs.split(",")] if args.freqs
+                 else BANDS["2.4"] + BANDS["5.8"] if args.band == "all" else BANDS[args.band])
+        plan += [(f, "droneid", args.dwell, args.buffer) for f in freqs]
+    if "video" in kinds:
+        for b in args.video_bands.split(","):
+            lo, hi = (VIDEO_RANGES[b] if b in VIDEO_RANGES
+                      else tuple(float(v) for v in b.split("-")))
+            f = lo + 5.0
+            while f <= hi - 5.0 + 1e-6:
+                plan.append((f, "video", 0.12, 1 << 19))
+                f += 10.0
+    if "elrs" in kinds:
+        for b in args.elrs_bands.split(","):
+            if b in ELRS_TUNES:
+                tunes = ELRS_TUNES[b]
+            else:                       # LO-HI MHz: links re-tuned off the usual bands
+                lo, hi = (float(v) for v in b.split("-"))
+                tunes = list(np.arange(lo + 5.0, hi - 5.0 + 1e-6, 10.0)) or [(lo + hi) / 2]
+            plan += [(float(f), "elrs", 0.25, 1 << 20) for f in tunes]   # 91 ms buffers
+    return plan
 
 
 def board_reader(board, args, plan, work, stop, counters):
     """Hop, stream, and queue buffers for the decoder; never blocks on it."""
-    buf = np.empty(2 * args.buffer, dtype=np.int16)
+    bufs = {}
     while not stop.is_set():
-        for mhz in plan:
+        for mhz, kind, dwell, nbuf in plan:
             if stop.is_set():
                 return
+            buf = bufs.setdefault(nbuf, np.empty(2 * nbuf, dtype=np.int16))
             try:
                 got = board.tune(mhz * 1e6)
                 # A retune reaches the samples only through a fresh buffer: the
                 # old one still holds samples from the previous channel.
-                board.open_rx(args.buffer, args.rx_channel)
+                board.open_rx(nbuf, args.rx_channel)
                 gain = board.gain_db(args.rx_channel)
-                end = time.monotonic() + args.dwell
+                end = time.monotonic() + dwell
                 first = True
-                while time.monotonic() < end and not stop.is_set():
+                # Video and ExpressLRS are on the air continuously: one buffer
+                # per tuning point finds them, and their detectors cost more per
+                # buffer than DroneID's, so never let them crowd it out.
+                left = 10 ** 9 if kind == "droneid" else 1
+                while time.monotonic() < end and left and not stop.is_set():
                     board.read_rx(buf)
                     counters["buffers"] += 1
                     if first:                     # may straddle the retune
                         first = False
                         continue
+                    left -= 1
                     try:
-                        work.put_nowait((got / 1e6, gain, buf.copy()))
+                        work.put_nowait((got / 1e6, gain, buf.copy(), kind))
                     except queue.Full:
                         counters["dropped"] += 1
                 board.close_rx()
@@ -352,10 +502,42 @@ def frame_dict(frame, freq_mhz, gain_db):
     # antenna port, uncalibrated (no absolute reference has been measured)
     if gain_db == gain_db:                      # not NaN
         d["rssi_db"] = round(d.get("power_dbfs", 0) - gain_db, 1)
+    if d.get("generation") == "O4":
+        d["packet_hex"] = frame.raw[:d["pkt_len"]].hex()
     return d
 
 
+def video_alert(v, mhz, gain_db):
+    """dict for an analog video detection tuned at mhz."""
+    f = mhz + v["offset_hz"] / 1e6
+    ch = fpv.nearest_video_channel(f, tol=6.0)
+    name = ch.split()[0] if ch else f"{f:.0f}"
+    d = dict(v, freq_mhz=round(f, 2), channel=ch, tuned_mhz=mhz,
+             label=f"Analog FPV video {v['standard']}", tag=f"fpv-video-{name}")
+    if gain_db == gain_db:
+        d["rssi_db"] = round(v["power_dbfs"] - gain_db, 1)
+    return d
+
+
+def lora_alert(found, mhz):
+    """dict for the strongest LoRa detection tuned at mhz, or None."""
+    if not found:
+        return None
+    b = max(found, key=lambda f: (f["preambles"], f["par_db"]))
+    band = b["band"]
+    elrs = band == "2.4" or b["hopping"]          # 812.5 kHz LoRa at 2.4 GHz is ELRS's own mode
+    label = (f"ExpressLRS {'2.4G' if band == '2.4' else '900'} SF{b['sf']}" if elrs
+             else f"LoRa {b['bw_hz'] / 1e3:g}k SF{b['sf']}")
+    return dict(b, freq_mhz=mhz, tuned_mhz=mhz, elrs=elrs, label=label,
+                tag=f"elrs-{band}" if elrs else f"lora-{mhz:.0f}")
+
+
 def describe(d):
+    if d.get("kind") == "analog_video":
+        return (f"{d['freq_mhz']:.1f} MHz  ANALOG FPV VIDEO {d['standard']}"
+                f"{'  ' + d['channel'] if d.get('channel') else ''}  comb {d['score_db']} dB")
+    if d.get("kind") == "lora":
+        return f"{fpv.describe_lora(d, d['tuned_mhz'])}  [{d['label']}]"
     crc = "" if d.get("record_crc_ok") else "  RECORD CRC FAILED"
     t = d.get("msg_type")
     if d.get("generation") == "O2/O3":
@@ -380,6 +562,12 @@ def main():
     src.add_argument("--file-format", choices=("cf32", "ci16"), help="raw recording format")
     src.add_argument("--file-freq", type=float, help="centre frequency of the recording, MHz")
     rf = ap.add_argument_group("radio")
+    rf.add_argument("--scan", default="droneid",
+                    help="what to look for, comma-separated: droneid, video, elrs (default droneid)")
+    rf.add_argument("--video-bands", default="5.8",
+                    help="analog video ranges: 5.8, 5.3, 1.2, 3.3 or LO-HI in MHz (default 5.8)")
+    rf.add_argument("--elrs-bands", default="2.4,915",
+                    help="ExpressLRS bands: 2.4, 915, 868, or LO-HI in MHz (default 2.4,915)")
     rf.add_argument("--rate", type=float, default=11.52e6, help="sample rate (default 11.52e6)")
     rf.add_argument("--band", choices=("2.4", "5.8", "all"), default="all")
     rf.add_argument("--freqs", help="comma-separated channel centres in MHz (overrides --band)")
@@ -395,6 +583,10 @@ def main():
                      help="send dji_O lines to dji_receiver.py, e.g. 127.0.0.1:52002")
     out.add_argument("--report-id-only", action="store_true",
                      help="also send frames that carry a serial but no position (they land at 0,0)")
+    out.add_argument("--dragonscope", metavar="URL",
+                     help="ask a DragonScope proxy to decrypt O4 packets, e.g. http://127.0.0.1")
+    out.add_argument("--alert-interval", type=float, default=5.0,
+                     help="seconds between repeated video/ExpressLRS alerts for one channel")
     out.add_argument("--save-failed", metavar="DIR",
                      help="save the IQ of bursts that were found but did not decode")
     out.add_argument("--stats", type=float, default=60, help="seconds between stats lines")
@@ -402,25 +594,36 @@ def main():
     args = ap.parse_args()
 
     try:
-        ocusync.Numerology.for_rate(args.rate)
-    except ValueError as e:
+        if "droneid" in args.scan.split(","):
+            ocusync.Numerology.for_rate(args.rate)
+        plan = build_plan(args)
+    except (ValueError, KeyError) as e:
         ap.error(str(e))
-    plan = ([float(f) for f in args.freqs.split(",")] if args.freqs
-            else BANDS["2.4"] + BANDS["5.8"] if args.band == "all" else BANDS[args.band])
 
     sink = None
     if args.dji_receiver:
         host, _, port = args.dji_receiver.rpartition(":")
         sink = DjiReceiverSink(host or "127.0.0.1", int(port), args.report_id_only)
+
+    def decrypted(d):
+        log("DragonScope: " + describe(d) + f"  -> {d['serial_number']}"
+            + (f" {d['latitude']:.5f},{d['longitude']:.5f}" if d.get("latitude") else ""))
+        if args.json:
+            print(json.dumps(d), flush=True)
+        if sink:
+            sink.emit(d)
+    scope = DragonScope(args.dragonscope, decrypted) if args.dragonscope else None
     if args.save_failed:
         os.makedirs(args.save_failed, exist_ok=True)
 
-    counters = {"buffers": 0, "dropped": 0, "errors": 0, "frames": 0}
+    counters = {"buffers": 0, "dropped": 0, "errors": 0, "frames": 0, "video": 0, "lora": 0}
     stop = threading.Event()
     work = queue.Queue(maxsize=8)
 
     if args.file:
-        gen = file_source(args.file, args.file_rate, args.file_format, args.file_freq, args.buffer)
+        kind = args.scan.split(",")[0]
+        gen = file_source(args.file, args.file_rate, args.file_format, args.file_freq,
+                          args.buffer, kind)
         rate = next(gen)
         rx = None
 
@@ -445,12 +648,14 @@ def main():
             return 1
         rate = args.rate
         log(f"board {uri}: {got['rate'] / 1e6:g} MSPS, {got['bandwidth'] / 1e6:g} MHz, "
-            f"gain {got['gain_mode']}; {len(plan)} channels, {args.dwell:g} s each")
+            f"gain {got['gain_mode']}; {len(plan)} tuning points ({args.scan}), "
+            f"{sum(p[2] for p in plan):.1f} s per sweep")
         rx = None
         threading.Thread(target=board_reader, args=(board, args, plan, work, stop, counters),
                          daemon=True).start()
 
     receivers = {}
+    alerted = {}
     t0 = time.monotonic()
     last_stats = t0
     try:
@@ -462,8 +667,27 @@ def main():
             if item is None:
                 break
             if item:
-                freq, gain, data = item
+                freq, gain, data, kind = item
                 x = data if np.iscomplexobj(data) else to_complex(data)
+                if kind != "droneid":
+                    if kind == "video":
+                        v = fpv.detect_video(x, rate)
+                        a = video_alert(v, freq, gain) if v else None
+                    else:
+                        a = lora_alert(fpv.detect_lora(x, rate, "2.4" if freq > 1500 else "900"), freq)
+                    if a:
+                        counters["video" if kind == "video" else "lora"] += 1
+                        now = time.monotonic()
+                        if now - alerted.get(a["tag"], -1e9) >= args.alert_interval:
+                            alerted[a["tag"]] = now
+                            a["time"] = datetime.datetime.now(datetime.timezone.utc).isoformat(
+                                timespec="milliseconds")
+                            log(describe(a))
+                            if args.json:
+                                print(json.dumps(a), flush=True)
+                            if sink and (kind == "video" or a.get("elrs")):
+                                sink.alert(a)
+                    continue
                 # One receiver per channel: each keeps its own noise floor, which
                 # differs from channel to channel once the AGC has its say.
                 rx = receivers.get(freq)
@@ -478,6 +702,8 @@ def main():
                         print(json.dumps(d), flush=True)
                     if sink:
                         sink.emit(d)
+                    if scope and d.get("generation") == "O4" and d.get("record_crc_ok"):
+                        scope.submit(d)
                 for start, fmt in failed or []:
                     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
                     seg = x[max(0, start - 2000):start + 12000]
@@ -489,6 +715,9 @@ def main():
                 s = total_stats(receivers)
                 log(f"stats: {counters['buffers']} buffers ({counters['dropped']} dropped by the decoder), "
                     f"{s['cp_candidates']} candidates, {s['crc_ok']} decoded, {s['crc_fail']} not decodable"
+                    + (f", video {counters['video']}, LoRa {counters['lora']}"
+                       if args.scan != "droneid" else "")
+                    + (f", DragonScope {scope.answered}/{scope.asked}" if scope else "")
                     + (f", {sink.sent} sent to dji_receiver" if sink else ""))
             if args.duration and now - t0 > args.duration:
                 break
@@ -496,8 +725,9 @@ def main():
         pass
     stop.set()
     s = total_stats(receivers)
-    log(f"done: {counters['frames']} frames; {s['cp_candidates']} candidates, "
-        f"{s['crc_fail']} found but not decodable")
+    log(f"done: {counters['frames']} DroneID frames; {s['cp_candidates']} candidates, "
+        f"{s['crc_fail']} found but not decodable; video {counters['video']}, "
+        f"LoRa {counters['lora']} detections")
     return 0
 
 

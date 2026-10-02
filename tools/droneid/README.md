@@ -9,9 +9,10 @@ None of that pipeline changes.
 |---|---|
 | `droneid_rx.py` | the receiver: tunes the board, streams, decodes, sends frames on |
 | `ocusync.py` | the decoder, numpy only: detection, OFDM demodulation, turbo decoding, the DroneID record |
+| `fpv.py` | detectors for analog FPV video and ExpressLRS/LoRa control links ([below](#fpv-video-and-expresslrs)) |
 | `droneid-rx.service` | systemd unit for the Pi |
 | `bench.py` | runs the decoder over the public drone RF datasets ([below](#testing-against-the-public-datasets)) |
-| `test_ocusync.py`, `test_droneid_rx.py` | the tests CI runs; no board, no captures |
+| `test_ocusync.py`, `test_fpv.py`, `test_droneid_rx.py` | the tests CI runs; no board, no captures |
 | `zynq_bootimg.py`, `pinmap_compare.py` | why MicroPhase's own DroneID image cannot run here ([the findings](../../docs/droneid-microphase.md)) |
 
 ## Running it
@@ -41,6 +42,10 @@ Options that matter:
 | `--rate 11.52e6` | 11.52 MSPS fits the Ethernet link; 15.36e6 if yours keeps up |
 | `--gain fast_attack` | or `slow_attack`, or a manual gain in dB such as `--gain 50` |
 | `--uri ip:ADDRESS` | otherwise `tools/board_addr.py` finds the board (`fishball.local`) |
+| `--scan droneid,video,elrs` | what to sweep for (default `droneid`); see [FPV video and ExpressLRS](#fpv-video-and-expresslrs) |
+| `--video-bands 5.8,1.2` | analog video ranges: `5.8`, `5.3`, `1.2`, `3.3`, or `LO-HI` in MHz |
+| `--elrs-bands 2.4,915` | ExpressLRS domains: `2.4`, `915`, `868` |
+| `--dragonscope http://127.0.0.1` | ask a licensed DragonScope proxy for O4 serial and position ([below](#dragonscope-o4-positions)) |
 | `--save-failed DIR` | keep the IQ of bursts found but not decoded, for study |
 | `--file REC.sigmf-meta` | decode a recording (SigMF from `tools/sigmf-capture.py`, or raw with `--file-rate`) |
 
@@ -143,38 +148,132 @@ That is a result, not a failure. The per-file "found but not decoded" count is
 the one to look at: a high count means bursts the decoder sees but cannot
 read, and `--jsonl` plus `droneid_rx.py --save-failed` are how to send them back.
 
-## Other brands, FPV and military drones
+## FPV video and ExpressLRS
 
-Only DJI broadcasts an identity in this OcuSync burst, so this receiver
-identifies DJI and nothing else. For everything else:
+FPV and home-built drones broadcast no identity, so for them the receiver
+**detects** rather than identifies. `--scan` adds two detectors from `fpv.py`
+to the sweep:
 
-- **Remote ID** (ASTM F3411 / ASD-STAN prEN 4709-002) is the broadcast every
-  brand must send where it is required: the FAA in the US, the C1–C3 classes
-  in the EU. Autel, Skydio, Parrot and DJI all send it. It goes out over WiFi
-  (Beacon, NAN) and Bluetooth (4 legacy, 5 Long Range), with serial, position
-  and operator location in clear. A WiFi or Bluetooth radio receives it better
-  than this SDR does. The WarDragon already does this with its ESP32 and
-  Bluetooth sniffers ([alphafox02/DroneID](https://github.com/alphafox02/DroneID));
-  run it alongside. Reference decoders:
-  [opendroneid](https://github.com/opendroneid/receiver-android) and
-  [open-remote-id-parser](https://github.com/iannil/open-remote-id-parser).
-  Autel's implementation has been reported as flawed (a fixed MAC address and
-  `default-ssid`), and on older models the pilot can turn it off.
-- **FPV and home-built drones**, including most military FPV use, broadcast no
-  identity at all. They can be *detected* by what their links look like:
-  - ExpressLRS / TBS Crossfire control links at 868/915 MHz and 2.4 GHz
-    (LoRa chirps, FLRC, frequency hopping);
-  - analog FM video at 5.8 GHz (often 1.2 and 3.3 GHz as well), recognisable
-    by its line sync;
-  - DJI O3/O4 air units, which carry the OcuSync signal.
+```bash
+# run from: the repo root
+tools/droneid/droneid_rx.py --scan droneid,video,elrs --dji-receiver 127.0.0.1:52002
+tools/droneid/droneid_rx.py --scan video --video-bands 5.8,1.2,3.3 --json
+```
 
-  This board tunes all of those bands. Detectors for them are not written yet.
-  [deye](https://github.com/subeep/deye) (GPL-3/AGPL) and
-  [beyond-the-goggles](https://github.com/Ray1172004/beyond-the-goggles) are
-  open prior art. RFUAV and DroneRFa contain such links for testing.
-- **Military datalinks** proper have no public decoders or datasets that this
-  search found. At most, an energy or spectrum-shape detector can say that
-  something is transmitting.
+- **Analog video** (`video`). It FM-demodulates, then looks for the comb of
+  harmonics at the video line rate: 15 625 Hz for PAL, 15 734 Hz for NTSC.
+  Every analog camera puts a sync pulse on every line, and OFDM, LoRa, a
+  plain carrier or noise do not make that comb. It reports the standard and
+  the nearest channel (`R4 5769`). It sweeps 10 MHz steps across the chosen
+  ranges (5.8 GHz: 5640–5950 MHz, every A/B/E/F/R channel) at ~0.1 s per step.
+- **ExpressLRS** (`elrs`). The air modes come from the ExpressLRS source:
+  - 2.4 GHz: LoRa at 812.5 kHz, SF5–SF8, hopping over 2400.4–2479.4 MHz;
+  - 900 MHz: 500 kHz, SF5–SF9, over FCC915 903.5–926.9 or EU868.
+
+  Each window is dechirped against the reference chirp and an FFT checks
+  whether the energy lands in one bin, repeated across a preamble. A carrier
+  or noise responds the same to the opposite chirp; a real preamble does not,
+  and that contrast is required. Several distinct frequencies within one
+  buffer mark a hopping link. 812.5 kHz LoRa at 2.4 GHz is ExpressLRS's own
+  mode, so it is labelled ExpressLRS. At 900 MHz it is labelled ExpressLRS
+  only if it hops; otherwise it may be a LoRaWAN device and is reported as
+  plain LoRa.
+
+Both go to dji_receiver.py as `drone-alert-fpv-video-R4` and
+`drone-alert-elrs-2.4`, at most one per channel every `--alert-interval`
+seconds. Their model field carries the label (for example "Analog FPV video
+PAL"). dji_receiver.py places any `drone-alert-*` at the sensor's own position,
+so they appear in TAK as alerts around the WarDragon. They are not drone
+positions.
+
+Tested against synthetic signals (`test_fpv.py`):
+- PAL and NTSC at ±3 and ±7 MHz deviation, including the wrap at 11.52 MSPS,
+  and down to 3 dB carrier-to-noise;
+- ExpressLRS SF5–SF8, hopping, down to 0 dB SNR in its bandwidth;
+- no alarms on noise, OFDM, a CW carrier, FM without video, or the other
+  detector's signal.
+
+`bench.py --detect video,elrs` runs the same detectors over wideband dataset
+recordings. **None of this has been tried on a real VTX or ExpressLRS radio
+yet**; that is the first field test to do.
+
+Not covered yet:
+- ExpressLRS's FLRC and FSK modes (its fastest packet rates);
+- TBS Crossfire's FSK mode;
+- the FSK hopping of FrSky, FlySky and Spektrum radios;
+- digital FPV video (DJI O3/O4 air units, Walksnail, HDZero).
+
+Crossfire's LoRa modes may be caught by the 900 MHz detector if their
+parameters match; that is not verified.
+
+## DragonScope (O4 positions)
+
+DragonScope is CEMAXecuter's licensed service for WarDragon kits. A proxy on
+the WarDragon (`dragonscope.py`, port 80) forwards each O4 packet to their
+remote service, which answers with the drone's serial and position.
+MicroPhase's DragonScope firmware sends it every CRYP/INFP packet. With
+`--dragonscope URL` this receiver does the same: it sends the logical packet's
+hex to `GET /api/o4online/decrypt?hex=`, at most once a second per session and
+packet type. When the answer carries a serial, the O4 drone goes to
+dji_receiver.py as "DJI O4 (Decrypted)" with serial, drone, pilot and home
+position.
+
+```bash
+tools/droneid/droneid_rx.py --dji-receiver 127.0.0.1:52002 --dragonscope http://127.0.0.1
+```
+
+- **Without a license key** the proxy answers `{"sn": ""}`, and O4 drones stay
+  as `drone-alert-<hash>`.
+- **This is only a client.** The decryption, and the key it needs, are
+  DragonScope's.
+- **Not yet tested against the real service, because there is no license
+  here.** The request and reply shapes come from `dragonscope.py` (`sn`, `lat`,
+  `lon`) and dji_receiver.py's proxy code; other reply fields are ignored. The
+  end-to-end test uses a fake DragonScope.
+- **One open question:** MicroPhase's firmware may send the packet in a
+  slightly different form, for example the whole 176-byte block. If a licensed
+  proxy answers empty for packets that MicroPhase's firmware gets answered,
+  that is the first thing to check.
+
+## Other brands and Remote ID
+
+Only DJI broadcasts an identity in the OcuSync burst. For every other brand,
+FIMI, Potensic (Atom), Autel, Skydio and Parrot included, the identity is in
+**Remote ID**:
+- **Standard:** ASTM F3411 / ASD-STAN prEN 4709-002.
+- **Where it is required:** the FAA in the US, the C1–C3 classes in the EU.
+- **How it is sent:** WiFi (Beacon, NAN) and Bluetooth (4 legacy, 5 Long
+  Range), with serial, position and operator location in clear.
+
+Some aircraft send it themselves (FIMI's X8 SE 2022 and X8 Tele are listed as
+Remote-ID approved). Others need an add-on module (Potensic sells the RID-916
+for the Atom/Atom SE/LT). Either way it is the same standard message, so one
+Remote ID receiver covers them all.
+
+- **The WarDragon already receives it** with its ESP32 and Bluetooth sniffers
+  ([alphafox02/DroneID](https://github.com/alphafox02/DroneID)); run that
+  alongside. A WiFi/Bluetooth chip hears these short packets better than an SDR
+  hopping across bands does.
+- **The reference message codec** is
+  [opendroneid-core-c](https://github.com/opendroneid/opendroneid-core-c)
+  (Apache-2.0, which this GPL-2.0-only repository cannot include). Others:
+  [open-remote-id-parser](https://github.com/iannil/open-remote-id-parser)
+  (C++),
+  [micropython-remoteid](https://github.com/Gurkengewuerz/micropython-remoteid)
+  (Python), and the [opendroneid Android receiver](https://github.com/opendroneid/receiver-android).
+- **Decoding Bluetooth 4 legacy Remote ID on this board** (GFSK at 1 Mbit/s on
+  advertising channels 37/38/39) is possible in numpy and would be a
+  reasonable next step. WiFi NAN/Beacon (802.11 OFDM/DSSS) is a much bigger
+  job.
+- **Autel's Remote ID has been reported as flawed**: a fixed MAC address and
+  `default-ssid`. On older models the pilot can turn it off.
+- **Military datalinks:** no public decoder and no public raw recordings were
+  found. A 2024 Ukrainian paper studies recognising Crossfire and ExpressLRS
+  signals ("Method of recognition of FPV-UAV radio signals formed according to
+  Crossfire and ExpressLRS standards"). Reporting from both sides agrees that
+  FPV control is mostly Crossfire and ExpressLRS, including at re-tuned
+  frequencies. That is why the ExpressLRS detector takes any `--elrs-bands`
+  range the AD9363 can tune.
 
 ## How the decoder works
 

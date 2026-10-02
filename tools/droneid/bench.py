@@ -31,6 +31,9 @@ any of them can be overridden with --format/--rate/--center-mhz:
     tampere58    the same at 5.8 GHz: ci16 at 200 MSPS, 5800 MHz
     hackrf       HackRF raw files: ci8, rate and centre must be given
 
+--detect video,elrs runs fpv.py's analog-video and LoRa/ExpressLRS detectors
+over the same recordings (RFUAV and DroneRFa contain FPV links).
+
 Exit 0 when every file was read, 1 if one could not be, 2 on a usage error.
 The exit status says nothing about how many drones were found: read the summary.
 """
@@ -48,6 +51,7 @@ import numpy as np
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import fpv                                                           # noqa: E402
 import ocusync                                                       # noqa: E402
 
 PRESETS = {
@@ -100,6 +104,51 @@ def channels_in(center, rate, plan):
     return [f for f in plan if abs(f * 1e6 - center * 1e6) + HALF_SPAN <= half]
 
 
+def other_detectors(raw, per, conv, n_total, rate, center, kinds, out, path):
+    """Analog video and LoRa/ExpressLRS over a wideband recording.
+
+    Video: every 10 MHz window across the recording is mixed down, resampled
+    to 11.52 MSPS (what the board would deliver) and tested on 40 ms out of
+    every 0.5 s. LoRa: dechirped at the recording's own rate, which sees every
+    channel inside it at once, on 0.1 s out of every 0.5 s."""
+    from scipy.signal import resample_poly
+    res = {"video": {}, "lora": {}}
+    step = int(0.5 * rate)
+    half = rate / 2
+    if "video" in kinds:
+        ratio = Fraction(11.52e6 / rate).limit_denominator(4000)
+        offs = np.arange(-half + 6e6, half - 6e6 + 1, 10e6)
+        n = int(0.045 * rate)
+        for start in range(0, max(1, n_total - n), step):
+            x = conv(raw[start * per:(start + n) * per])
+            t = (start + np.arange(len(x))) / rate
+            for off in offs:
+                y = x * np.exp(-2j * np.pi * off * t).astype(np.complex64)
+                y = resample_poly(y, ratio.numerator, ratio.denominator).astype(np.complex64)
+                v = fpv.detect_video(y, 11.52e6)
+                if v:
+                    f = center + (off + v["offset_hz"]) / 1e6
+                    ch = fpv.nearest_video_channel(f, tol=6.0) or f"{f:.1f} MHz"
+                    k = f"{v['standard']} {ch}"
+                    res["video"][k] = res["video"].get(k, 0) + 1
+                    if out:
+                        out.write(json.dumps(dict(v, file=path, freq_mhz=round(f, 2), channel=ch,
+                                                  time_s=round(start / rate, 3))) + "\n")
+    if "elrs" in kinds:
+        band = "2.4" if center > 1500 else "900"
+        n = int(0.1 * rate)
+        for start in range(0, max(1, n_total - n), step):
+            x = conv(raw[start * per:(start + n) * per])
+            for d in fpv.detect_lora(x, rate, band, seconds=0.1):
+                k = f"{d['bw_hz'] / 1e3:g} kHz SF{d['sf']}" + (" hopping" if d["hopping"] else "")
+                res["lora"][k] = res["lora"].get(k, 0) + 1
+                if out:
+                    out.write(json.dumps(dict(d, file=path, time_s=round(start / rate, 3),
+                                              freqs_mhz=[round(center + o / 1e6, 3)
+                                                         for o in d["offsets_hz"]])) + "\n")
+    return res
+
+
 def bench_file(path, args, out):
     data_path, fmt, rate, center = read_meta(path)
     fmt = args.format or fmt or "cf32"
@@ -113,9 +162,17 @@ def bench_file(path, args, out):
     n_total = len(raw) // per
     if args.max_seconds:
         n_total = min(n_total, int(args.max_seconds * rate))
+    kinds = set(args.detect.split(","))
+    extra = other_detectors(raw, per, conv, n_total, rate, center, kinds, out, path) \
+        if kinds & {"video", "elrs"} else {"video": {}, "lora": {}}
+    if "droneid" not in kinds:
+        return {"file": path, "format": fmt, "rate": rate, "center_mhz": center,
+                "seconds": round(n_total / rate, 3), "channels": [], "frames": 0,
+                "o2o3": {}, "o4_sessions": {}, "serial_frames": {}, "other": 0,
+                "candidates": 0, "found_not_decoded": 0, "cpu_s": 0, **extra}
     plan = [float(f) for f in args.freqs.split(",")] if args.freqs else RASTER
     chans = channels_in(center, rate, plan)
-    if not chans:
+    if not chans and not extra["video"] and not extra["lora"]:
         print(f"{path}: no DroneID channel fits in {center:g} MHz +- {rate / 2e6:g} MHz",
               file=sys.stderr)
         return None
@@ -167,7 +224,7 @@ def bench_file(path, args, out):
         for k in st:
             st[k] += r.stats[k]
     summary.update(candidates=st["cp_candidates"], found_not_decoded=st["crc_fail"],
-                   cpu_s=round(time.time() - t0, 1))
+                   cpu_s=round(time.time() - t0, 1), **extra)
     return summary
 
 
@@ -183,6 +240,8 @@ def main():
     ap.add_argument("--max-seconds", type=float, help="read at most this much of each file")
     ap.add_argument("--chunk-ms", type=float, default=50.0)
     ap.add_argument("--jsonl", help="write every frame here as one JSON object per line")
+    ap.add_argument("--detect", default="droneid",
+                    help="droneid, video, elrs, comma-separated (default droneid)")
     args = ap.parse_args()
     if args.preset:
         p = PRESETS[args.preset]
@@ -210,9 +269,11 @@ def main():
         found += [f"{k} x{v}" for k, v in s["o2o3"].items()]
         found += [f"O4 session {k} x{v}" for k, v in s["o4_sessions"].items()]
         found += [f"serial {k} x{v}" for k, v in s["serial_frames"].items()]
+        found += [f"VIDEO {k} x{v}" for k, v in s["video"].items()]
+        found += [f"LoRa {k} x{v}" for k, v in s["lora"].items()]
         print(f"{path}: {s['seconds']} s, channels {', '.join(f'{c:g}' for c in s['channels'])}"
               f" | {s['frames']} frames, {s['found_not_decoded']} found-not-decoded,"
-              f" {s['candidates']} candidates | {'; '.join(found) or 'no DroneID'}"
+              f" {s['candidates']} candidates | {'; '.join(found) or 'nothing found'}"
               f" ({s['cpu_s']} s CPU)")
     if out:
         out.close()

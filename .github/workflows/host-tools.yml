@@ -111,6 +111,7 @@ jobs:
         run: |
           python -m pip install --quiet numpy scipy
           python tools/droneid/test_ocusync.py
+          python tools/droneid/test_fpv.py
           python tools/droneid/test_droneid_rx.py
 
       - name: Every tool agrees on where the board is

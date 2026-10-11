@@ -127,6 +127,17 @@ relative level, not calibrated to dBm.
   `drone-alert-<hash>` at the sensor's position, with frequency and level, but
   no serial or drone position. The hash changes each time the drone is
   powered on.
+- **Older OcuSync drones (Mavic Pro, Mavic 2 family) are covered by the
+  8-symbol layout.** They leave out the first symbol of the burst, as
+  DroneSecurity's `--legacy` mode does for exactly these models: 8 symbols,
+  long CP on the first and last, ZC on symbols 2 and 4, six data symbols,
+  about 576 us. `ocusync.py`'s `8-symbol` format is that layout, and the
+  product table names them (16 Mavic Pro, 41 Mavic 2, 51/69 Mavic 2
+  Enterprise). The decoder is checked on simulated 8-symbol bursts only. No
+  capture of these models has been run through it.
+- **DJI's Wi-Fi drones** (Spark, Mavic Air 1, Mini 1/SE, Tello) send their
+  identification in Wi-Fi beacons, not in this burst. droneid-go on a
+  WarDragon kit receives those with its Wi-Fi adapter.
 - **Some DJI drones are newer than this.** A 10-symbol O4+ burst with
   different Zadoff-Chu roots has been reported, and encrypted DroneID has been
   seen from an Inspire 3 (O3). Neither is handled; the 10-symbol form would not

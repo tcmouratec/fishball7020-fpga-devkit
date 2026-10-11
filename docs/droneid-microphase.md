@@ -176,6 +176,25 @@ public, and recovering it from the bitstream would mean reverse engineering
 the netlist. Starting `done_dji_release` with no device present is harmless
 (it prints `open_device device Failed`), but it will not decode anything.
 
+**MicroPhase's UHD firmware does not change this.** The other E200 image,
+[antsdr_uhd](https://github.com/MicroPhase/antsdr_uhd), turns the E200 into a
+UHD (Ettus) device. Its FPGA source is public, unlike the DroneID IP. AlphaFox's
+fork adds a branch, `antsdr-uhd-4.9-port`, that ports only the host driver to
+UHD 4.9 and fixes control-packet resynchronisation. It has no DroneID code. Its
+bitstream does not fit this board either:
+
+- `pinmap_compare.py` finds **20 contended balls** against the PlutoSky pin map.
+  `firmware/fpga/antsdr_e200/xdc/e200.xdc` drives the AD9361 in CMOS mode,
+  where this board wires it as LVDS.
+- The samples leave the E200 through a UDP engine in the fabric
+  (`e200_eth_if_core.v`) on a PL-side RGMII PHY (balls C20…H16). This board's
+  RTL8211F is on PS MIO 16–27, which the fabric cannot reach.
+
+A port would mean a new LVDS interface and a new path from the fabric to the
+PS Ethernet, which is a new design. It would also give the host-side decoder
+nothing that tezuka's 8-bit IQ over the PS Ethernet does not (see
+[tools/droneid](../tools/droneid/README.md#with-f5oeos-tezuka-firmware)).
+
 ## 5. The route that works: this board as the receiver, decoding on the host
 
 This route is now built: [`tools/droneid/droneid_rx.py`](../tools/droneid/README.md).

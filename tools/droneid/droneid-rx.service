@@ -19,6 +19,8 @@ WorkingDirectory=/home/dragon/fishball7020-fpga-devkit
 # DragonSync's FPV port 4226; set fpv_enabled = true there, needs python3-zmq,
 # and do not run WarDragon's fpv-receiver on this same SDR), use instead:
 #   ExecStart=... droneid_rx.py --scan droneid,video,elrs --dji-receiver 127.0.0.1:52002 --fpv-zmq --stats 300
+# With F5OEO's tezuka firmware on the board, add --cs8 (8-bit I/Q, half the
+# traffic) and the board's address, e.g. --uri ip:192.168.1.50 --cs8.
 ExecStart=/usr/bin/python3 /home/dragon/fishball7020-fpga-devkit/tools/droneid/droneid_rx.py --dji-receiver 127.0.0.1:52002 --stats 300
 Restart=always
 RestartSec=5

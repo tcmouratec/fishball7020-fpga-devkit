@@ -478,8 +478,13 @@ class Receiver:
     def __init__(self, fs: float = 15.36e6, cp_threshold: float = 0.30,
                  zc_threshold: float = 0.35, max_cfo_hz: float = 60e3,
                  turbo: bool = True, iterations: int = 6, gate_db=1.5,
-                 max_offset_hz: float = 1.2e6, min_spread: float = 0.25):
+                 max_offset_hz: float = 1.2e6, min_spread: float = 0.25,
+                 max_tries: int = 4):
         self.num = Numerology.for_rate(fs)
+        # readings of one stretch of signal to demodulate, best CP score first:
+        # a real burst decodes from the first in every capture tried, and a
+        # stretch of other traffic can yield twenty
+        self.max_tries = max_tries
         self.min_spread = min_spread
         self.max_offset_hz = max_offset_hz
         self.gate_db = gate_db
@@ -817,7 +822,7 @@ class Receiver:
             if self._occupancy(x, group[0][0], group[0][1]) < self.min_spread:
                 continue
             confirmed = None
-            for start, fmt, frac, _ in group:
+            for start, fmt, frac, _ in group[:self.max_tries]:
                 got = self.demodulate(x, start, fmt, frac)
                 if got is None:
                     continue

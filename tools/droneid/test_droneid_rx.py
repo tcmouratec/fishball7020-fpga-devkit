@@ -262,9 +262,24 @@ def file_mode():
                             os.path.join(d, "rec.sigmf-meta"), "--json"],
                            capture_output=True, text=True, timeout=120)
         frames = [json.loads(ln) for ln in p.stdout.splitlines() if ln.startswith("{")]
-        return check(p.returncode == 0 and len(frames) == 2
-                     and all(abs(f["freq_mhz"] - 2444.5) < 0.01 for f in frames),
-                     f"--file reads a SigMF ci16 recording ({len(frames)} of 2 bursts)")
+        ok = check(p.returncode == 0 and len(frames) == 2
+                   and all(abs(f["freq_mhz"] - 2444.5) < 0.01 for f in frames),
+                   f"--file reads a SigMF ci16 recording ({len(frames)} of 2 bursts)")
+        # what --save-busy keeps from a --cs8 board reads back the same way
+        import droneid_rx
+        iq8 = np.empty(2 * len(x), dtype=np.int8)
+        iq8[0::2], iq8[1::2] = np.round(x.real * 127), np.round(x.imag * 127)
+        busy = os.path.join(d, "busy")
+        os.makedirs(busy)
+        droneid_rx.save_busy(busy, (2444.5, 40.0, iq8, "droneid"), 15.36e6, 1.0)
+        meta8 = [f for f in os.listdir(busy) if f.endswith(".sigmf-meta")]
+        p = subprocess.run([sys.executable, os.path.join(HERE, "droneid_rx.py"), "--file",
+                            os.path.join(busy, meta8[0]), "--json"],
+                           capture_output=True, text=True, timeout=120)
+        frames = [json.loads(ln) for ln in p.stdout.splitlines() if ln.startswith("{")]
+        return ok & check(p.returncode == 0 and len(frames) == 2,
+                          f"--save-busy keeps a ci8 buffer as SigMF that --file decodes "
+                          f"({len(frames)} of 2 bursts)")
 
 
 

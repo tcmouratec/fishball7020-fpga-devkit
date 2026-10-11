@@ -54,6 +54,7 @@ Options that matter:
 | `--workers N` | decoder processes (default: CPU cores - 1, at most 4) |
 | `--log FILE` | also write the log to FILE (UTF-8); on Windows use it instead of `2>` |
 | `--save-failed DIR` | keep the IQ of bursts found but not decoded, for study |
+| `--save-busy DIR` | keep up to 6 buffers that were slow to decode, as SigMF; the log's last lines say which channels cost the most |
 | `--file REC.sigmf-meta` | decode a recording (SigMF from `tools/sigmf-capture.py`, or raw with `--file-rate`) |
 
 It only receives. The only output attribute it writes is the RX LO frequency;

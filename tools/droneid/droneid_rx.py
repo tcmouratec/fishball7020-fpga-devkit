@@ -451,14 +451,15 @@ def file_source(path, rate, fmt, freq_mhz, chunk, kind="droneid"):
         g = meta["global"]
         rate = rate or g.get("core:sample_rate")
         dt = g.get("core:datatype", "ci16_le")
-        fmt = fmt or ("cf32" if dt.startswith("cf32") else "ci16")
+        fmt = fmt or ("cf32" if dt.startswith("cf32") else "ci8" if dt.startswith("ci8")
+                      else "ci16")
         caps = meta.get("captures") or [{}]
         if freq_mhz is None and caps[0].get("core:frequency"):
             freq_mhz = caps[0]["core:frequency"] / 1e6
     if not rate:
         sys.exit("--file-rate is required for a raw recording")
     fmt = fmt or "cf32"
-    dtype = np.complex64 if fmt == "cf32" else np.int16
+    dtype = {"cf32": np.complex64, "ci8": np.int8}.get(fmt, np.int16)
     data = np.memmap(path, dtype=dtype, mode="r")
     step = chunk if fmt == "cf32" else 2 * chunk
     resample = None
@@ -479,7 +480,7 @@ def file_source(path, rate, fmt, freq_mhz, chunk, kind="droneid"):
     yield out_rate
     for i in range(0, len(data), step):
         c = np.asarray(data[i:i + step])
-        if fmt == "ci16":
+        if fmt in ("ci16", "ci8"):
             c = to_complex(c)
         if resample:
             c = resample[0](c, resample[1], resample[2]).astype(np.complex64)
@@ -569,7 +570,7 @@ def board_reader(board, args, plan, work, stop, counters):
 
 
 # --------------------------------------------------------------- main
-def analyse(item, rate, receivers, save_failed=None):
+def analyse(item, rate, receivers, opts=None):
     """Run the detector one buffer calls for. Returns a picklable dict, so the
     same code runs in the main process or in a worker (--workers).
 
@@ -577,9 +578,48 @@ def analyse(item, rate, receivers, save_failed=None):
     each keeps its own noise floor, which differs from channel to channel
     once the AGC has its say."""
     t0 = time.perf_counter()
-    res = _analyse(item, rate, receivers, save_failed)
+    opts = opts or {}
+    res = _analyse(item, rate, receivers, opts.get("save_failed"))
     res.update(freq=item[0], secs=time.perf_counter() - t0)
+    busy = opts.get("save_busy")
+    if busy and res["kind"] == "droneid" and res["secs"] > BUSY_SECS:
+        save_busy(busy, item, rate, res["secs"])
     return res
+
+
+BUSY_SECS = 0.4         # --save-busy: a DroneID buffer that took longer than this
+BUSY_KEEP = 6           # ... and at most this many of them
+
+
+def save_busy(directory, item, rate, secs):
+    """Keep a buffer that was slow to decode, as SigMF, for study: whatever
+    in it made so many candidates is what the detector needs to learn to
+    turn away. The samples are kept as they came off the board."""
+    freq, gain, data, kind = item
+    try:
+        if len([f for f in os.listdir(directory) if f.endswith(".sigmf-data")]) >= BUSY_KEEP:
+            return
+    except OSError:
+        return
+    if np.iscomplexobj(data):
+        dt, raw = "cf32_le", data.astype(np.complex64)
+    elif data.dtype == np.int8:
+        dt, raw = "ci8", data
+    else:
+        dt, raw = "ci16_le", data.astype("<i2")
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    base = os.path.join(directory, f"busy_{stamp}_{freq:.1f}MHz")
+    raw.tofile(base + ".sigmf-data")
+    meta = {"global": {"core:datatype": dt, "core:sample_rate": rate, "core:version": "1.0.0",
+                       "core:description": f"droneid_rx.py --save-busy: {secs:.2f} s to decode",
+                       "core:hw": "PlutoSky (AD9361)"},
+            "captures": [{"core:sample_start": 0, "core:frequency": freq * 1e6,
+                          "core:datetime": datetime.datetime.now(datetime.timezone.utc).isoformat()}],
+            "annotations": []}
+    if gain == gain:
+        meta["captures"][0]["plutosky:gain_db"] = gain
+    with open(base + ".sigmf-meta", "w") as f:
+        json.dump(meta, f, indent=1)
 
 
 def _analyse(item, rate, receivers, save_failed):
@@ -609,13 +649,13 @@ def _analyse(item, rate, receivers, save_failed):
 _WORKER = {}
 
 
-def _worker_init(rate, save_failed):
-    _WORKER.update(rate=rate, save_failed=save_failed, receivers={})
+def _worker_init(rate, opts):
+    _WORKER.update(rate=rate, opts=opts, receivers={})
 
 
 def _worker_run(item):
     w = _WORKER
-    return analyse(item, w["rate"], w["receivers"], w["save_failed"])
+    return analyse(item, w["rate"], w["receivers"], w["opts"])
 
 
 def default_workers():
@@ -689,7 +729,7 @@ def main():
     src.add_argument("--uri", help="board, e.g. ip:fishball.local (default: tools/board_addr.py)")
     src.add_argument("--file", help="decode a recording instead (.sigmf-meta, or raw with --file-rate)")
     src.add_argument("--file-rate", type=float, help="sample rate of a raw recording")
-    src.add_argument("--file-format", choices=("cf32", "ci16"), help="raw recording format")
+    src.add_argument("--file-format", choices=("cf32", "ci16", "ci8"), help="raw recording format")
     src.add_argument("--file-freq", type=float, help="centre frequency of the recording, MHz")
     rf = ap.add_argument_group("radio")
     rf.add_argument("--scan", default="droneid",
@@ -726,6 +766,9 @@ def main():
                      help="seconds between repeated video/ExpressLRS alerts for one channel")
     out.add_argument("--save-failed", metavar="DIR",
                      help="save the IQ of bursts that were found but did not decode")
+    out.add_argument("--save-busy", metavar="DIR",
+                     help=f"keep up to {BUSY_KEEP} DroneID buffers that took over "
+                          f"{BUSY_SECS:g} s to decode, as SigMF, for study")
     out.add_argument("--log", metavar="FILE",
                      help="also append the log lines to FILE (UTF-8); on Windows "
                           "PowerShell, use this rather than 2> FILE")
@@ -767,6 +810,9 @@ def main():
                      "fpv-receiver service running? Stop it, or use another port")
     if args.save_failed:
         os.makedirs(args.save_failed, exist_ok=True)
+    if args.save_busy:
+        os.makedirs(args.save_busy, exist_ok=True)
+    opts = {"save_failed": args.save_failed, "save_busy": args.save_busy}
 
     counters = {"buffers": 0, "dropped": 0, "errors": 0, "frames": 0, "video": 0, "lora": 0}
     stop = threading.Event()
@@ -846,7 +892,7 @@ def main():
     pool = None
     if workers > 1:
         pool = multiprocessing.get_context("spawn").Pool(
-            workers, _worker_init, (rate, args.save_failed))
+            workers, _worker_init, (rate, opts))
     log(f"decoding in {workers} process{'es' if workers > 1 else ''} "
         f"({os.cpu_count()} CPU cores)")
     inflight = collections.deque()
@@ -868,7 +914,7 @@ def main():
                 if pool:
                     inflight.append(pool.apply_async(_worker_run, (item,)))
                 else:
-                    handle(analyse(item, rate, receivers, args.save_failed))
+                    handle(analyse(item, rate, receivers, opts))
             now = time.monotonic()
             if now - last_stats >= args.stats:
                 last_stats = now

@@ -44,6 +44,7 @@ import multiprocessing
 import os
 import pathlib
 import queue
+import signal
 import socket
 import sys
 import threading
@@ -650,6 +651,10 @@ _WORKER = {}
 
 
 def _worker_init(rate, opts):
+    # Ctrl-C reaches every process attached to the console (on Windows, and
+    # in a Linux terminal's process group): leave it to the main process,
+    # which then stops the pool and prints the summary.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     _WORKER.update(rate=rate, opts=opts, receivers={})
     # A fresh process is several times slower on its first buffers (imports,
     # FFT setup, page faults); pay that here, not on the first sweep, where it

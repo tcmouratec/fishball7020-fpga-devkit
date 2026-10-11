@@ -669,8 +669,9 @@ def _worker_run(item):
 
 def default_workers():
     """Decoder processes: all cores but one, which the board reader, the
-    sinks and the operating system need; at most 4."""
-    return max(1, min(4, (os.cpu_count() or 2) - 1))
+    sinks and the operating system need; at most 8 (3 on a Raspberry Pi 5;
+    8 is what a Ryzen 7 laptop needed for the full sweep over USB)."""
+    return max(1, min(8, (os.cpu_count() or 2) - 1))
 
 
 def frame_dict(frame, freq_mhz, gain_db):
@@ -757,7 +758,7 @@ def main():
     rf.add_argument("--rx-channel", type=int, choices=(0, 1), default=0, help="RX1 (0) or RX2 (1)")
     rf.add_argument("--buffer", type=int, default=1 << 20, help="samples per buffer (default 1 Mi)")
     rf.add_argument("--workers", type=int, default=0,
-                    help="decoder processes (default: CPU cores - 1, at most 4)")
+                    help="decoder processes (default: CPU cores - 1, at most 8)")
     rf.add_argument("--cs8", action="store_true",
                     help="8-bit I/Q, half the network traffic (tezuka firmware only)")
     out = ap.add_argument_group("output")

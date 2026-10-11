@@ -835,6 +835,8 @@ def main():
     if workers > 1:
         pool = multiprocessing.get_context("spawn").Pool(
             workers, _worker_init, (rate, args.save_failed))
+    log(f"decoding in {workers} process{'es' if workers > 1 else ''} "
+        f"({os.cpu_count()} CPU cores)")
     inflight = collections.deque()
     t0 = time.monotonic()
     last_stats = t0

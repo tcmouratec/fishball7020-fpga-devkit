@@ -541,8 +541,13 @@ def board_reader(board, args, plan, work, stop, counters):
                 # Video and ExpressLRS are on the air continuously: one buffer
                 # per tuning point finds them, and their detectors cost more per
                 # buffer than DroneID's, so never let them crowd it out.
+                # Their dwell is a minimum, not a deadline: a buffer can take
+                # longer than the dwell to arrive (16-bit samples over USB),
+                # and a tuning point that ends before its one buffer is never
+                # looked at.
                 left = 10 ** 9 if kind == "droneid" else 1
-                while time.monotonic() < end and left and not stop.is_set():
+                while (left and not stop.is_set()
+                       and (kind != "droneid" or time.monotonic() < end)):
                     board.read_rx(buf)
                     counters["buffers"] += 1
                     if first:                     # may straddle the retune

@@ -59,6 +59,7 @@ class FakeBoard(threading.Thread):
         # continuous emitters: {tuned MHz: complex baseband loop at RATE}
         self.loops = {}
         self.loop_pos = 0
+        self.read_delay = 0.0      # seconds per READBUF: a slow link (16-bit over USB)
 
     def run(self):
         while True:
@@ -126,6 +127,7 @@ class FakeBoard(threading.Thread):
                                    self.attrs.get(("ad9361-phy", "altvoltage0", "frequency"))))
                 f.write(b"0\n")
             elif cmd == "READBUF":
+                time.sleep(self.read_delay)
                 want = int(w[2])
                 data = self.samples(want // 2, True) if cs8 else self.samples(want // 4)
                 f.write(b"%d\n00000003\n" % len(data) + data)
@@ -235,6 +237,7 @@ def main():
     ok &= cs8_mode()
     ok &= file_mode()
     ok &= bench_mode()
+    ok &= slow_link_mode()
     ok &= scan_mode()
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1
@@ -372,6 +375,26 @@ class FakeDragonScope(threading.Thread):
 
     def run(self):
         self.srv.serve_forever()
+
+
+def slow_link_mode():
+    """A buffer that takes longer to arrive than a video tuning point's dwell
+    (16-bit samples over USB) must still be looked at."""
+    import json
+    board = FakeBoard()
+    board.read_delay = 0.2                    # > the 0.12 s video dwell
+    video = F.fm(F.composite(RATE, "PAL", 0.1), RATE, 3e6, 4e6) * 0.3
+    board.loops = {5765.0: video.astype(np.complex64)}
+    board.start()
+    p = subprocess.run([sys.executable, os.path.join(HERE, "droneid_rx.py"),
+                        "--uri", f"ip:127.0.0.1:{board.port}", "--scan", "video",
+                        "--video-bands", "5750-5790", "--duration", "4", "--json",
+                        "--alert-interval", "0.5", "--workers", "1"],
+                       capture_output=True, text=True, timeout=120)
+    alerts = [json.loads(ln) for ln in p.stdout.splitlines() if ln.startswith("{")]
+    return check(p.returncode == 0 and any(a.get("tag") == "fpv-video-R4" for a in alerts),
+                 f"a slow link still gets every video tuning point looked at "
+                 f"({len(alerts)} alerts)")
 
 
 def scan_mode():

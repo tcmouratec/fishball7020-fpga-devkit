@@ -18,8 +18,11 @@ None of that pipeline changes.
 ## Running it
 
 On the Pi you need Python 3.8+ and numpy (`sudo apt install python3-numpy`).
-libiio and pyadi-iio are not needed. Connect the board by **Ethernet**: the
-USB gadget carries about 10 MB/s, a quarter of what the default rate needs.
+libiio and pyadi-iio are not needed. Connect the board by **Ethernet** if you
+can. Over the USB gadget, a PlutoSky running tezuka with `--cs8` delivered
+about 19 MB/s to a Windows laptop, 80 % of the 11.52 MSPS stream; at 16 bits it
+was 42 %. It also runs on Windows (`py -3 tools\droneid\droneid_rx.py ...`)
+and macOS.
 
 ```bash
 # run from: the repo root, on the Pi
@@ -47,6 +50,9 @@ Options that matter:
 | `--elrs-bands 2.4,915` | ExpressLRS domains: `2.4`, `915`, `868` |
 | `--dragonscope http://127.0.0.1` | ask a licensed DragonScope proxy for O4 serial and position ([below](#dragonscope-o4-positions)) |
 | `--fpv-zmq` | publish analog-video detections on 4226 for DragonSync's FPV ingest ([below](#on-a-wardragon-kit)) |
+| `--cs8` | 8-bit I/Q: half the traffic ([tezuka firmware](#with-f5oeos-tezuka-firmware) only) |
+| `--workers N` | decoder processes (default: CPU cores - 1, at most 4) |
+| `--log FILE` | also write the log to FILE (UTF-8); on Windows use it instead of `2>` |
 | `--save-failed DIR` | keep the IQ of bursts found but not decoded, for study |
 | `--file REC.sigmf-meta` | decode a recording (SigMF from `tools/sigmf-capture.py`, or raw with `--file-rate`) |
 

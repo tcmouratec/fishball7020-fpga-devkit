@@ -37,8 +37,10 @@ or configured, 2 on a usage error.
 from __future__ import annotations
 
 import argparse
+import collections
 import datetime
 import json
+import multiprocessing
 import os
 import pathlib
 import queue
@@ -567,12 +569,52 @@ def board_reader(board, args, plan, work, stop, counters):
 
 
 # --------------------------------------------------------------- main
-def total_stats(receivers):
-    out = {"cp_candidates": 0, "crc_ok": 0, "crc_fail": 0}
-    for r in receivers.values():
-        for k in out:
-            out[k] += r.stats[k]
-    return out
+def analyse(item, rate, receivers, save_failed=None):
+    """Run the detector one buffer calls for. Returns a picklable dict, so the
+    same code runs in the main process or in a worker (--workers).
+
+    receivers: {MHz: ocusync.Receiver}, one per channel, kept by the caller:
+    each keeps its own noise floor, which differs from channel to channel
+    once the AGC has its say."""
+    freq, gain, data, kind = item
+    x = data if np.iscomplexobj(data) else to_complex(data)
+    if kind == "video":
+        v = fpv.detect_video(x, rate)
+        return {"kind": kind, "alert": video_alert(v, freq, gain) if v else None}
+    if kind != "droneid":
+        found = fpv.detect_lora(x, rate, "2.4" if freq > 1500 else "900")
+        return {"kind": kind, "alert": lora_alert(found, freq)}
+    rx = receivers.get(freq)
+    if rx is None:
+        rx = receivers[freq] = ocusync.Receiver(rate)
+    before = dict(rx.stats)
+    failed = [] if save_failed else None
+    frames = [frame_dict(fr, freq, gain) for fr in rx.process(x, failed=failed)]
+    for start, fmt in failed or []:
+        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        seg = x[max(0, start - 2000):start + 12000]
+        base = os.path.join(save_failed, f"{stamp}_{freq:.1f}MHz_{rx.fs / 1e6:g}Msps")
+        seg.astype(np.complex64).tofile(base + ".cf32")
+    return {"kind": kind, "frames": frames,
+            "stats": {k: rx.stats[k] - before[k] for k in before}}
+
+
+_WORKER = {}
+
+
+def _worker_init(rate, save_failed):
+    _WORKER.update(rate=rate, save_failed=save_failed, receivers={})
+
+
+def _worker_run(item):
+    w = _WORKER
+    return analyse(item, w["rate"], w["receivers"], w["save_failed"])
+
+
+def default_workers():
+    """Decoder processes: all cores but one, which the board reader, the
+    sinks and the operating system need; at most 4."""
+    return max(1, min(4, (os.cpu_count() or 2) - 1))
 
 
 def frame_dict(frame, freq_mhz, gain_db):
@@ -658,6 +700,8 @@ def main():
     rf.add_argument("--bandwidth", type=float, default=10e6, help="analog bandwidth (default 10e6)")
     rf.add_argument("--rx-channel", type=int, choices=(0, 1), default=0, help="RX1 (0) or RX2 (1)")
     rf.add_argument("--buffer", type=int, default=1 << 20, help="samples per buffer (default 1 Mi)")
+    rf.add_argument("--workers", type=int, default=0,
+                    help="decoder processes (default: CPU cores - 1, at most 4)")
     rf.add_argument("--cs8", action="store_true",
                     help="8-bit I/Q, half the network traffic (tezuka firmware only)")
     out = ap.add_argument_group("output")
@@ -726,7 +770,6 @@ def main():
         gen = file_source(args.file, args.file_rate, args.file_format, args.file_freq,
                           args.buffer, kind)
         rate = next(gen)
-        rx = None
 
         def feeder():
             for item in gen:
@@ -751,85 +794,89 @@ def main():
         log(f"board {uri}: {got['rate'] / 1e6:g} MSPS, {got['bandwidth'] / 1e6:g} MHz, "
             f"gain {got['gain_mode']}; {len(plan)} tuning points ({args.scan}), "
             f"{sum(p[2] for p in plan):.1f} s per sweep")
-        rx = None
         threading.Thread(target=board_reader, args=(board, args, plan, work, stop, counters),
                          daemon=True).start()
 
     receivers = {}
     alerted = {}
+    totals = {"cp_candidates": 0, "crc_ok": 0, "crc_fail": 0}
+
+    def handle(res):
+        kind = res["kind"]
+        a = res.get("alert")
+        if a:
+            counters["video" if kind == "video" else "lora"] += 1
+            now = time.monotonic()
+            if now - alerted.get(a["tag"], -1e9) >= args.alert_interval:
+                alerted[a["tag"]] = now
+                a["time"] = datetime.datetime.now(datetime.timezone.utc).isoformat(
+                    timespec="milliseconds")
+                log(describe(a))
+                if args.json:
+                    print(json.dumps(a), flush=True)
+                if kind == "video" and fpvpub:
+                    fpvpub.publish(a)            # DragonSync's own FPV path
+                elif sink and (kind == "video" or a.get("elrs")):
+                    sink.alert(a)
+        for k, v in res.get("stats", {}).items():
+            totals[k] += v
+        for d in res.get("frames", ()):
+            counters["frames"] += 1
+            log(describe(d))
+            if args.json:
+                print(json.dumps(d), flush=True)
+            if sink:
+                sink.emit(d)
+            if scope and d.get("generation") == "O4" and d.get("record_crc_ok"):
+                scope.submit(d)
+
+    workers = args.workers if args.workers else default_workers()
+    pool = None
+    if workers > 1:
+        pool = multiprocessing.get_context("spawn").Pool(
+            workers, _worker_init, (rate, args.save_failed))
+    inflight = collections.deque()
     t0 = time.monotonic()
     last_stats = t0
     try:
         while True:
+            # Hand results back in order. With every worker busy, wait for the
+            # oldest: the board reader then drops buffers instead of queueing.
+            while inflight and (inflight[0].ready() or len(inflight) >= 2 * workers):
+                handle(inflight.popleft().get())
             try:
-                item = work.get(timeout=0.5)
+                item = work.get(timeout=0.05 if inflight else 0.5)
             except queue.Empty:
                 item = False
             if item is None:
                 break
             if item:
-                freq, gain, data, kind = item
-                x = data if np.iscomplexobj(data) else to_complex(data)
-                if kind != "droneid":
-                    if kind == "video":
-                        v = fpv.detect_video(x, rate)
-                        a = video_alert(v, freq, gain) if v else None
-                    else:
-                        a = lora_alert(fpv.detect_lora(x, rate, "2.4" if freq > 1500 else "900"), freq)
-                    if a:
-                        counters["video" if kind == "video" else "lora"] += 1
-                        now = time.monotonic()
-                        if now - alerted.get(a["tag"], -1e9) >= args.alert_interval:
-                            alerted[a["tag"]] = now
-                            a["time"] = datetime.datetime.now(datetime.timezone.utc).isoformat(
-                                timespec="milliseconds")
-                            log(describe(a))
-                            if args.json:
-                                print(json.dumps(a), flush=True)
-                            if kind == "video" and fpvpub:
-                                fpvpub.publish(a)            # DragonSync's own FPV path
-                            elif sink and (kind == "video" or a.get("elrs")):
-                                sink.alert(a)
-                    continue
-                # One receiver per channel: each keeps its own noise floor, which
-                # differs from channel to channel once the AGC has its say.
-                rx = receivers.get(freq)
-                if rx is None:
-                    rx = receivers[freq] = ocusync.Receiver(rate)
-                failed = [] if args.save_failed else None
-                for fr in rx.process(x, failed=failed):
-                    d = frame_dict(fr, freq, gain)
-                    counters["frames"] += 1
-                    log(describe(d))
-                    if args.json:
-                        print(json.dumps(d), flush=True)
-                    if sink:
-                        sink.emit(d)
-                    if scope and d.get("generation") == "O4" and d.get("record_crc_ok"):
-                        scope.submit(d)
-                for start, fmt in failed or []:
-                    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-                    seg = x[max(0, start - 2000):start + 12000]
-                    base = os.path.join(args.save_failed, f"{stamp}_{freq:.1f}MHz_{rx.fs / 1e6:g}Msps")
-                    seg.astype(np.complex64).tofile(base + ".cf32")
+                if pool:
+                    inflight.append(pool.apply_async(_worker_run, (item,)))
+                else:
+                    handle(analyse(item, rate, receivers, args.save_failed))
             now = time.monotonic()
             if now - last_stats >= args.stats:
                 last_stats = now
-                s = total_stats(receivers)
                 log(f"stats: {counters['buffers']} buffers ({counters['dropped']} dropped by the decoder), "
-                    f"{s['cp_candidates']} candidates, {s['crc_ok']} decoded, {s['crc_fail']} not decodable"
+                    f"{totals['cp_candidates']} candidates, {totals['crc_ok']} decoded, "
+                    f"{totals['crc_fail']} not decodable"
                     + (f", video {counters['video']}, LoRa {counters['lora']}"
                        if args.scan != "droneid" else "")
                     + (f", DragonScope {scope.answered}/{scope.asked}" if scope else "")
                     + (f", {sink.sent} sent to dji_receiver" if sink else ""))
             if args.duration and now - t0 > args.duration:
                 break
+        while inflight:
+            handle(inflight.popleft().get())
     except KeyboardInterrupt:
         pass
+    finally:
+        if pool:
+            pool.terminate()
     stop.set()
-    s = total_stats(receivers)
-    log(f"done: {counters['frames']} DroneID frames; {s['cp_candidates']} candidates, "
-        f"{s['crc_fail']} found but not decodable; video {counters['video']}, "
+    log(f"done: {counters['frames']} DroneID frames; {totals['cp_candidates']} candidates, "
+        f"{totals['crc_fail']} found but not decodable; video {counters['video']}, "
         f"LoRa {counters['lora']} detections")
     return 0
 

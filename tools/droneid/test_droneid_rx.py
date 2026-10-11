@@ -170,12 +170,14 @@ def cs8_mode():
     p = subprocess.run([sys.executable, os.path.join(HERE, "droneid_rx.py"),
                         "--uri", f"ip:127.0.0.1:{board.port}", "--freqs", str(LIVE_MHZ),
                         "--dwell", "0.6", "--duration", "3", "--json", "--buffer", "262144",
-                        "--cs8"], capture_output=True, text=True, timeout=120)
+                        "--cs8", "--workers", "1"],      # and the one-process path
+                       capture_output=True, text=True, timeout=120)
     import json
     frames = [json.loads(ln) for ln in p.stdout.splitlines() if ln.startswith("{")]
     return check(p.returncode == 0 and board.opens and all(o[2] == "00000001" for o in board.opens)
                  and frames and all(f["serial_number"] == "1WNBH3900201N1" for f in frames),
-                 f"--cs8 opens voltage0 alone and decodes 8-bit I/Q ({len(frames)} frames)")
+                 f"--cs8 opens voltage0 alone and decodes 8-bit I/Q, in one process "
+                 f"({len(frames)} frames)")
 
 
 def main():

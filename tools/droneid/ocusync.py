@@ -478,8 +478,9 @@ class Receiver:
     def __init__(self, fs: float = 15.36e6, cp_threshold: float = 0.30,
                  zc_threshold: float = 0.35, max_cfo_hz: float = 60e3,
                  turbo: bool = True, iterations: int = 6, gate_db=1.5,
-                 max_offset_hz: float = 1.2e6):
+                 max_offset_hz: float = 1.2e6, min_spread: float = 0.25):
         self.num = Numerology.for_rate(fs)
+        self.min_spread = min_spread
         self.max_offset_hz = max_offset_hz
         self.gate_db = gate_db
         self.floor = None
@@ -533,7 +534,8 @@ class Receiver:
 
     def _cp_scan(self, x: np.ndarray, stride: int):
         """Normalised cyclic-prefix correlation for each frame format, on a
-        grid of `stride` samples: {format: (times, metric, cumulative sum)}.
+        grid of `stride` samples: {format: (times, metric, cumulative sum,
+        window sums)}.
 
         The metric is 1.0 where a burst with that symbol layout starts, small
         elsewhere, and does not depend on the carrier frequency offset. The
@@ -561,7 +563,7 @@ class Receiver:
                 a, en = win[cp]
                 num += a[off:off + m * stride:stride]
                 den += en[off:off + m * stride:stride]
-            out[fmt] = (np.arange(m) * stride, num / np.maximum(den, 1e-20), cp_)
+            out[fmt] = (np.arange(m) * stride, num / np.maximum(den, 1e-20), cp_, win)
         return out
 
     def _frac_cfo(self, cp_, t, fmt):
@@ -573,7 +575,7 @@ class Receiver:
     def _detect_segment(self, x: np.ndarray, base: int):
         stride = 8
         found = []
-        for fmt, (times, m, cp_) in self._cp_scan(x, stride).items():
+        for fmt, (times, m, cp_, wsum) in self._cp_scan(x, stride).items():
             # local maxima above threshold, at least half a symbol apart
             w = max(1, self.num.nfft // (2 * stride))
             if len(m) < 2 * w + 1:
@@ -582,25 +584,26 @@ class Receiver:
             win = np.lib.stride_tricks.sliding_window_view(pad, 2 * w + 1)
             peaks = np.flatnonzero((m > self.cp_threshold) & (m >= win.max(axis=1)))
             for k in peaks:
-                found.append((fmt, int(times[k]), float(m[k]), cp_))
+                found.append((fmt, int(times[k]), float(m[k]), cp_, wsum))
         out = []
-        for fmt, t0, score, cp_ in found:
-            # refine to the sample around the coarse peak
+        for fmt, t0, score, cp_, wsum in found:
+            # refine to the sample around the coarse peak: the same metric,
+            # every sample instead of every stride-th
             n = self.num.nfft
             lo, hi = max(0, t0 - stride), min(len(x) - n - fmt.length(self.num), t0 + stride)
-            best, bt = -1.0, t0
-            for t in range(lo, hi + 1):
-                num = den = 0.0
-                for off, cp in zip(fmt.offsets(self.num), fmt.cps(self.num)):
-                    a = t + off
-                    num += abs(cp_[a + cp] - cp_[a])
-                    seg = x[a:a + cp]
-                    seg2 = x[a + n:a + n + cp]
-                    den += 0.5 * (np.vdot(seg, seg).real + np.vdot(seg2, seg2).real)
-                v = num / max(den, 1e-20)
-                if v > best:
-                    best, bt = v, t
-            out.append((base + bt, fmt, self._frac_cfo(cp_, bt, fmt), best))
+            if hi < lo:
+                continue
+            ts = np.arange(lo, hi + 1)
+            num = np.zeros(len(ts))
+            den = np.zeros(len(ts))
+            for off, cp in zip(fmt.offsets(self.num), fmt.cps(self.num)):
+                a, en = wsum[cp]
+                num += a[ts + off]
+                den += en[ts + off]
+            v = num / np.maximum(den, 1e-20)
+            k = int(np.argmax(v))
+            bt = int(ts[k])
+            out.append((base + bt, fmt, self._frac_cfo(cp_, bt, fmt), float(v[k])))
         return out
 
     def detect(self, x):
@@ -648,6 +651,37 @@ class Receiver:
         d = v[1:] * np.conj(v[:-1]) * np.conj(ref)
         d[N_DATA // 2 - 1] = 0          # carriers 299 and 300 sit either side of DC
         return float(abs(d.sum()) / max(np.sum(np.abs(v[1:]) * np.abs(v[:-1])), 1e-12))
+
+    def _spread(self, y, fmt) -> float:
+        """How evenly the ZC symbols' energy covers the 600 carriers: the
+        effective number of occupied carriers over 600. About 1 for a burst on
+        a flat channel, 0.5 under Rayleigh fading, and noise alone is near 1.
+
+        Both ZC tests normalise by the signal's own energy, so a carrier or
+        two holding nearly all of it (a tone, a Bluetooth or other hopping
+        burst) passes them as well as a real burst does, and then costs a full
+        turbo decode. This turns those away first."""
+        p = sum(np.abs(y[s][self.bins]) ** 2 for s in fmt.zc_symbols)
+        return float(p.sum() ** 2 / max(np.sum(p * p), 1e-30) / len(p))
+
+    def _occupancy(self, x, start, fmt) -> float:
+        """_spread for a whole candidate group from one FFT, before any
+        demodulation: the effective number of occupied 600-carrier-wide
+        slices of the band over the 600 a burst fills. A group of candidates
+        is one stretch of signal, so this turns a narrowband burst away once
+        instead of once per candidate."""
+        blen = fmt.length(self.num)
+        seg = x[max(0, start):start + blen]
+        if len(seg) < blen // 2:
+            return 1.0
+        nf = 1 << int(np.ceil(np.log2(len(seg))))
+        p = np.abs(np.fft.fftshift(np.fft.fft(seg, nf))) ** 2
+        per = nf * SCS / self.fs                     # FFT bins per carrier
+        half = min(nf // 2 - 1, int((N_DATA / 2 * SCS + self.max_offset_hz) / self.fs * nf))
+        band = p[nf // 2 - half:nf // 2 + half]
+        k = max(1, int(round(per)))
+        band = band[:len(band) // k * k].reshape(-1, k).sum(axis=1)
+        return float(band.sum() ** 2 / max(np.sum(band * band), 1e-30) / N_DATA)
 
     def _carrier_offset(self, y, fmt):
         """(coherence, whole-carrier offset): the shift at which the channel
@@ -705,6 +739,8 @@ class Receiver:
             seg = seg * np.exp(-2j * np.pi * coarse * tt / self.fs)
         seg = seg * np.exp(-2j * np.pi * frac_cfo * tt / self.fs)
         y = self._symbols(seg, start, fmt)
+        if self._spread(y, fmt) < self.min_spread:
+            return None
         if self._zc_present(y, fmt) < self.zc_threshold:
             return None
         coh, q = self._carrier_offset(y, fmt)
@@ -778,6 +814,8 @@ class Receiver:
         appended to it, for saving and later study."""
         x = np.asarray(x, dtype=np.complex64)
         for group in self.detect(x):
+            if self._occupancy(x, group[0][0], group[0][1]) < self.min_spread:
+                continue
             confirmed = None
             for start, fmt, frac, _ in group:
                 got = self.demodulate(x, start, fmt, frac)

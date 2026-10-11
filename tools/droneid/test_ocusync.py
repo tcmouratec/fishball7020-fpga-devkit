@@ -16,6 +16,7 @@ Those captures are AGPL-licensed and are not copied here.
 import struct
 import sys
 import os
+import time
 
 import numpy as np
 
@@ -149,6 +150,25 @@ def main(sweep=False):
     noise = (RNG.standard_normal(4_000_000) + 1j * RNG.standard_normal(4_000_000)).astype(np.complex64)
     n = sum(len(list(rx.process(noise[i:i + 1 << 20]))) for i in range(0, len(noise), 1 << 20))
     ok &= check(n == 0, "0.35 s of noise at 11.52 MSPS gives no frames")
+    # Tones and hopping narrowband bursts (Bluetooth and the like fill 2.4 GHz)
+    # pass both ZC tests, which normalise by the signal's own energy; they
+    # must be turned away before the turbo decoder, or they starve it.
+    fs, n = 11.52e6, 1 << 20
+    x = (0.02 * (RNG.standard_normal(n) + 1j * RNG.standard_normal(n))).astype(np.complex64)
+    t = np.arange(11520)
+    for s in range(0, n - 11520, 30000):
+        if s // 30000 % 2:     # GFSK-like, 1 Mbit/s
+            ph = np.cumsum(RNG.choice([-1, 1], 11520)) * np.pi * 1e6 / fs
+        else:                  # a tone anywhere in the band
+            ph = 2 * np.pi * RNG.uniform(-4e6, 4e6) * t / fs
+        x[s:s + 11520] += (0.3 * np.exp(1j * ph)).astype(np.complex64)
+    rx = o.Receiver(fs)
+    t0 = time.time()
+    n = len(list(rx.process(x)))
+    took = time.time() - t0
+    ok &= check(n == 0 and rx.stats["crc_fail"] == 0 and rx.stats["cp_candidates"] > 20,
+                f"narrowband bursts: {rx.stats['cp_candidates']} candidates, none confirmed "
+                f"({took:.2f} s for 91 ms)")
 
     print("decoding gain")
     snrs = (-1, 0, 1, 2, 4, 8, 10) if sweep else (1,)

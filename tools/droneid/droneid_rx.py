@@ -89,8 +89,15 @@ def to_complex(iq: np.ndarray) -> np.ndarray:
     return (iq.astype(np.float32) * scale).view(np.complex64)
 
 
+LOG_FILE = None                 # --log: a copy of every log line, UTF-8
+
+
 def log(msg):
-    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {msg}", file=sys.stderr, flush=True)
+    line = f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {msg}"
+    print(line, file=sys.stderr, flush=True)
+    if LOG_FILE:
+        LOG_FILE.write(line + "\n")
+        LOG_FILE.flush()
 
 
 # --------------------------------------------------------------- the board
@@ -668,9 +675,15 @@ def main():
                      help="seconds between repeated video/ExpressLRS alerts for one channel")
     out.add_argument("--save-failed", metavar="DIR",
                      help="save the IQ of bursts that were found but did not decode")
+    out.add_argument("--log", metavar="FILE",
+                     help="also append the log lines to FILE (UTF-8); on Windows "
+                          "PowerShell, use this rather than 2> FILE")
     out.add_argument("--stats", type=float, default=60, help="seconds between stats lines")
     out.add_argument("--duration", type=float, help="stop after this many seconds")
     args = ap.parse_args()
+    if args.log:
+        global LOG_FILE
+        LOG_FILE = open(args.log, "a", encoding="utf-8")
 
     try:
         if "droneid" in args.scan.split(","):

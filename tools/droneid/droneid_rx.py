@@ -576,6 +576,13 @@ def analyse(item, rate, receivers, save_failed=None):
     receivers: {MHz: ocusync.Receiver}, one per channel, kept by the caller:
     each keeps its own noise floor, which differs from channel to channel
     once the AGC has its say."""
+    t0 = time.perf_counter()
+    res = _analyse(item, rate, receivers, save_failed)
+    res.update(freq=item[0], secs=time.perf_counter() - t0)
+    return res
+
+
+def _analyse(item, rate, receivers, save_failed):
     freq, gain, data, kind = item
     x = data if np.iscomplexobj(data) else to_complex(data)
     if kind == "video":
@@ -800,9 +807,14 @@ def main():
     receivers = {}
     alerted = {}
     totals = {"cp_candidates": 0, "crc_ok": 0, "crc_fail": 0}
+    cost = {}                   # (kind, MHz): [buffers, seconds, candidates]
 
     def handle(res):
         kind = res["kind"]
+        c = cost.setdefault((kind, res["freq"]), [0, 0.0, 0])
+        c[0] += 1
+        c[1] += res["secs"]
+        c[2] += res.get("stats", {}).get("cp_candidates", 0)
         a = res.get("alert")
         if a:
             counters["video" if kind == "video" else "lora"] += 1
@@ -877,6 +889,22 @@ def main():
         if pool:
             pool.terminate()
     stop.set()
+    if cost:
+        # where the decoding time went: the first thing to read when the
+        # decoder drops buffers
+        busy = sorted(cost.items(), key=lambda kv: -kv[1][1])
+        total = sum(v[1] for v in cost.values())
+        log(f"decoding time {total:.1f} s; busiest: " + "; ".join(
+            f"{k} {f:g} MHz {n} x {sec / n * 1e3:.0f} ms"
+            + (f", {cand / n:.0f} candidates" if k == "droneid" else "")
+            for (k, f), (n, sec, cand) in busy[:6]))
+        by_kind = {}
+        for (k, _f), (n, sec, _c) in cost.items():
+            a = by_kind.setdefault(k, [0, 0.0])
+            a[0] += n
+            a[1] += sec
+        log("per kind: " + "; ".join(f"{k} {n} x {sec / n * 1e3:.0f} ms"
+                                     for k, (n, sec) in sorted(by_kind.items())))
     log(f"done: {counters['frames']} DroneID frames; {totals['cp_candidates']} candidates, "
         f"{totals['crc_fail']} found but not decodable; video {counters['video']}, "
         f"LoRa {counters['lora']} detections")

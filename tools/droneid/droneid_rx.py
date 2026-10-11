@@ -651,6 +651,15 @@ _WORKER = {}
 
 def _worker_init(rate, opts):
     _WORKER.update(rate=rate, opts=opts, receivers={})
+    # A fresh process is several times slower on its first buffers (imports,
+    # FFT setup, page faults); pay that here, not on the first sweep, where it
+    # would drop buffers and fill --save-busy with nothing to learn from.
+    rng = np.random.default_rng(0)
+    x = (0.01 * (rng.standard_normal(1 << 17) + 1j * rng.standard_normal(1 << 17))).astype(np.complex64)
+    x[20000:60000] += np.exp(2j * np.pi * 0.05 * np.arange(40000)).astype(np.complex64)
+    list(ocusync.Receiver(rate).process(x))
+    fpv.detect_video(x, rate)
+    fpv.detect_lora(x, rate, "2.4")
 
 
 def _worker_run(item):

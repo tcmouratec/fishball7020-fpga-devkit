@@ -88,6 +88,18 @@ from it. Never use `frm` or
 DFU. tezuka runs `/mnt/jffs2/autorun.sh` like the stock firmware does, so
 check that file first. Not yet tried on this board.
 
+## Antenna
+
+One antenna, on the port marked **RX1A** (`--rx-channel 0`). Leave the TX
+ports and the small U.FL connectors (CLK IN, RX LO, TX LO) unconnected. The
+telescopic whip that ships with the board is for frequencies below about
+1 GHz and loses a lot at 2.4 and 5.8 GHz. Use a 2.4/5.8 GHz dual-band
+antenna, or a 700 MHz–6 GHz wideband one to cover ExpressLRS 868/915 as
+well. The connector must be **SMA male, with a centre pin**. Most WiFi router
+antennas are RP-SMA: they screw on but make no contact.
+
+<img src="img/antena-plutosky.png" alt="SMA male (centre pin) against RP-SMA male (centre hole), and the two antenna options: dual-band 2.4/5.8 GHz and wideband 700 MHz to 6 GHz" width="600">
+
 ## What one frame looks like
 
 ```

@@ -237,6 +237,7 @@ def main():
     ok &= cs8_mode()
     ok &= file_mode()
     ok &= bench_mode()
+    ok &= wait_board_mode()
     ok &= slow_link_mode()
     ok &= scan_mode()
     print("PASS" if ok else "FAIL")
@@ -375,6 +376,33 @@ class FakeDragonScope(threading.Thread):
 
     def run(self):
         self.srv.serve_forever()
+
+
+def wait_board_mode():
+    """--wait-board: started before the board is up, it waits and then decodes."""
+    import json
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]               # nothing listens here yet
+    s.close()
+    p = subprocess.Popen([sys.executable, os.path.join(HERE, "droneid_rx.py"),
+                          "--uri", f"ip:127.0.0.1:{port}", "--freqs", str(LIVE_MHZ),
+                          "--buffer", "262144", "--wait-board", "--duration", "3",
+                          "--json", "--workers", "1"],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    time.sleep(2)
+    board = FakeBoard()
+    board.srv.close()
+    board.srv = socket.socket()
+    board.srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    board.srv.bind(("127.0.0.1", port))
+    board.srv.listen(4)
+    board.port = port
+    board.start()
+    out, err = p.communicate(timeout=120)
+    frames = [json.loads(ln) for ln in out.splitlines() if ln.startswith("{")]
+    return check(p.returncode == 0 and "waiting for the board" in err and frames,
+                 f"--wait-board waits for a board that comes up later ({len(frames)} frames)")
 
 
 def slow_link_mode():

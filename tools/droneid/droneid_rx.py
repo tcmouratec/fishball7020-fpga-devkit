@@ -767,6 +767,9 @@ def main():
     rf.add_argument("--bandwidth", type=float, default=10e6, help="analog bandwidth (default 10e6)")
     rf.add_argument("--rx-channel", type=int, choices=(0, 1), default=0, help="RX1 (0) or RX2 (1)")
     rf.add_argument("--buffer", type=int, default=1 << 20, help="samples per buffer (default 1 Mi)")
+    rf.add_argument("--wait-board", action="store_true",
+                    help="if the board is not there yet (powered off, still booting), "
+                         "keep retrying instead of exiting: for running at boot")
     rf.add_argument("--workers", type=int, default=0,
                     help="decoder processes (default: CPU cores - 1, at most 8)")
     rf.add_argument("--cs8", action="store_true",
@@ -853,12 +856,23 @@ def main():
     else:
         from board_addr import uri as board_uri
         uri = args.uri or board_uri()
-        try:
-            board = Board(uri)
-            got = board.configure(args.rate, args.bandwidth, args.gain, args.rx_channel)
-        except (OSError, IiodError, KeyError) as e:
-            log(f"cannot use the board at {uri}: {e}")
-            return 1
+        waited = False
+        while True:
+            try:
+                board = Board(uri)
+                got = board.configure(args.rate, args.bandwidth, args.gain, args.rx_channel)
+                break
+            except (OSError, IiodError, KeyError) as e:
+                if not args.wait_board:
+                    log(f"cannot use the board at {uri}: {e}")
+                    return 1
+                if not waited:
+                    log(f"waiting for the board at {uri} ({e}); retrying every 10 s")
+                    waited = True
+                try:
+                    time.sleep(10)
+                except KeyboardInterrupt:
+                    return 1
         if abs(got["rate"] - args.rate) > 1 or abs(got["fabric_rate"] - args.rate) > 1:
             log(f"the board runs at {got['rate']:.0f} S/s (fabric {got['fabric_rate']:.0f}), "
                 f"not {args.rate:.0f}: refusing to decode at the wrong rate")

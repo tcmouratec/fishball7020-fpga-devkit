@@ -51,6 +51,7 @@ Options that matter:
 | `--dragonscope http://127.0.0.1` | ask a licensed DragonScope proxy for O4 serial and position ([below](#dragonscope-o4-positions)) |
 | `--fpv-zmq` | publish analog-video detections on 4226 for DragonSync's FPV ingest ([below](#on-a-wardragon-kit)) |
 | `--cs8` | 8-bit I/Q: half the traffic ([tezuka firmware](#with-f5oeos-tezuka-firmware) only) |
+| `--wait-board` | if the board is off or still booting, keep retrying every 10 s instead of exiting (for running at boot) |
 | `--workers N` | decoder processes (default: CPU cores - 1, at most 8) |
 | `--log FILE` | also write the log to FILE (UTF-8); on Windows use it instead of `2>` |
 | `--save-failed DIR` | keep the IQ of bursts found but not decoded, for study |

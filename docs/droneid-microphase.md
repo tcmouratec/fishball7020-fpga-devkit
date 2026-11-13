@@ -153,6 +153,11 @@ A healthy board passes **157–158 of 256** delay positions
 ([measured performance](measured-performance.md)). A narrower eye, or a failed digital loopback, points
 at the RX LVDS lines.
 
+<img src="img/e200-pinagem.png" alt="Ball map of the XC7Z020-CLG400 as MicroPhase's E200 IIO design uses it, coloured by function (AD9361 CMOS receive and transmit, control and SPI, RGMII Ethernet, clocks, GPIO), with the nine balls that contend with the PlutoSky ringed in red, and a table of every ball's E200 signal next to the PlutoSky's" width="900">
+
+The E200's FPGA pin map from `projects/e200/system_constr.xdc`, drawn ball by
+ball, with what the PlutoSky has on each ball (`docs/img/e200-pinagem.svg`).
+
 ## 4. What this means for the plans
 
 **Plan A (replace the FSBL)** would at best give a console: a factory FSBL

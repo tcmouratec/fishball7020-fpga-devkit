@@ -1,0 +1,633 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1338" font-family="Helvetica, Arial, sans-serif">
+<rect width="1280" height="1338" fill="#ffffff"/>
+<text x="40" y="46" font-size="26" font-weight="bold" fill="#111">ANTSDR E200 (MicroPhase): pinagem do FPGA XC7Z020-CLG400</text>
+<text x="40" y="74" font-size="15" fill="#444">Projeto IIO da MicroPhase (antsdr-fw-patch, projects/e200/system_constr.xdc). Vista de cima do encapsulamento, só os pinos da lógica (PL).</text>
+<text x="40" y="96" font-size="15" fill="#444">Anel vermelho = pino em CONFLITO na PlutoSky: o bitstream da E200 transmitiria num fio que a PlutoSky já transmite.</text>
+<text x="84.0" y="132" font-size="11" text-anchor="middle" fill="#555">1</text>
+<text x="112.0" y="132" font-size="11" text-anchor="middle" fill="#555">2</text>
+<text x="140.0" y="132" font-size="11" text-anchor="middle" fill="#555">3</text>
+<text x="168.0" y="132" font-size="11" text-anchor="middle" fill="#555">4</text>
+<text x="196.0" y="132" font-size="11" text-anchor="middle" fill="#555">5</text>
+<text x="224.0" y="132" font-size="11" text-anchor="middle" fill="#555">6</text>
+<text x="252.0" y="132" font-size="11" text-anchor="middle" fill="#555">7</text>
+<text x="280.0" y="132" font-size="11" text-anchor="middle" fill="#555">8</text>
+<text x="308.0" y="132" font-size="11" text-anchor="middle" fill="#555">9</text>
+<text x="336.0" y="132" font-size="11" text-anchor="middle" fill="#555">10</text>
+<text x="364.0" y="132" font-size="11" text-anchor="middle" fill="#555">11</text>
+<text x="392.0" y="132" font-size="11" text-anchor="middle" fill="#555">12</text>
+<text x="420.0" y="132" font-size="11" text-anchor="middle" fill="#555">13</text>
+<text x="448.0" y="132" font-size="11" text-anchor="middle" fill="#555">14</text>
+<text x="476.0" y="132" font-size="11" text-anchor="middle" fill="#555">15</text>
+<text x="504.0" y="132" font-size="11" text-anchor="middle" fill="#555">16</text>
+<text x="532.0" y="132" font-size="11" text-anchor="middle" fill="#555">17</text>
+<text x="560.0" y="132" font-size="11" text-anchor="middle" fill="#555">18</text>
+<text x="588.0" y="132" font-size="11" text-anchor="middle" fill="#555">19</text>
+<text x="616.0" y="132" font-size="11" text-anchor="middle" fill="#555">20</text>
+<text x="58" y="158.0" font-size="11" text-anchor="end" fill="#555">A</text>
+<circle cx="84.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="154.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="154.0" r="11" fill="#2e8b57"><title>A20: E200 MDIO_PHY_mdio_io (inout) | PlutoSky -</title></circle>
+<text x="58" y="186.0" font-size="11" text-anchor="end" fill="#555">B</text>
+<circle cx="84.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="182.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="182.0" r="11" fill="#2e8b57"><title>B19: E200 eth_rst_n (out) | PlutoSky -</title></circle>
+<circle cx="616.0" cy="182.0" r="11" fill="#2e8b57"><title>B20: E200 MDIO_PHY_mdc (out) | PlutoSky -</title></circle>
+<text x="58" y="214.0" font-size="11" text-anchor="end" fill="#555">C</text>
+<circle cx="84.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="210.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="210.0" r="11" fill="#2e8b57"><title>C20: E200 RGMII_td[3] (out) | PlutoSky -</title></circle>
+<text x="58" y="242.0" font-size="11" text-anchor="end" fill="#555">D</text>
+<circle cx="84.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="238.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="238.0" r="11" fill="#2e8b57"><title>D18: E200 RGMII_txc (out) | PlutoSky -</title></circle>
+<circle cx="588.0" cy="238.0" r="11" fill="#2e8b57"><title>D19: E200 RGMII_td[2] (out) | PlutoSky -</title></circle>
+<circle cx="616.0" cy="238.0" r="11" fill="#2e8b57"><title>D20: E200 RGMII_td[1] (out) | PlutoSky -</title></circle>
+<text x="58" y="270.0" font-size="11" text-anchor="end" fill="#555">E</text>
+<circle cx="84.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="266.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="266.0" r="11" fill="#2e8b57"><title>E17: E200 RGMII_rd[1] (in) | PlutoSky -</title></circle>
+<circle cx="560.0" cy="266.0" r="11" fill="#2e8b57"><title>E18: E200 RGMII_rd[3] (in) | PlutoSky -</title></circle>
+<circle cx="588.0" cy="266.0" r="11" fill="#2e8b57"><title>E19: E200 RGMII_rd[2] (in) | PlutoSky -</title></circle>
+<circle cx="616.0" cy="266.0" r="4" fill="#d1d5db"/>
+<text x="58" y="298.0" font-size="11" text-anchor="end" fill="#555">F</text>
+<circle cx="84.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="294.0" r="11" fill="#2e8b57"><title>F16: E200 RGMII_rd[0] (in) | PlutoSky -</title></circle>
+<circle cx="532.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="294.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="294.0" r="11" fill="#2e8b57"><title>F19: E200 RGMII_td[0] (out) | PlutoSky -</title></circle>
+<circle cx="616.0" cy="294.0" r="11" fill="#2e8b57"><title>F20: E200 RGMII_tx_ctl (out) | PlutoSky -</title></circle>
+<text x="58" y="326.0" font-size="11" text-anchor="end" fill="#555">G</text>
+<circle cx="84.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="322.0" r="11" fill="#6b7280"><title>G15: E200 tx_amp_en (out) | PlutoSky -</title></circle>
+<circle cx="504.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="322.0" r="11" fill="#2e8b57"><title>G17: E200 RGMII_rx_ctl (in) | PlutoSky -</title></circle>
+<circle cx="560.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="322.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="322.0" r="4" fill="#d1d5db"/>
+<text x="58" y="354.0" font-size="11" text-anchor="end" fill="#555">H</text>
+<circle cx="84.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="350.0" r="11" fill="#2e8b57"><title>H16: E200 RGMII_rxc (in) | PlutoSky -</title></circle>
+<circle cx="532.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="350.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="350.0" r="4" fill="#d1d5db"/>
+<text x="58" y="382.0" font-size="11" text-anchor="end" fill="#555">J</text>
+<circle cx="84.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="378.0" r="11" fill="#7a4fbf"><title>J15: E200 gpio_status[1] (in) | PlutoSky -</title></circle>
+<circle cx="504.0" cy="378.0" r="11" fill="#7a4fbf"><title>J16: E200 gpio_status[2] (in) | PlutoSky -</title></circle>
+<circle cx="532.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="378.0" r="11" fill="#c2a00e"><title>J18: E200 CLKIN_10MHz (in) | PlutoSky -</title></circle>
+<circle cx="588.0" cy="378.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="378.0" r="4" fill="#d1d5db"/>
+<text x="58" y="410.0" font-size="11" text-anchor="end" fill="#555">K</text>
+<circle cx="84.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="406.0" r="11" fill="#7a4fbf"><title>K16: E200 gpio_status[6] (in) | PlutoSky -</title></circle>
+<circle cx="532.0" cy="406.0" r="11" fill="#c2a00e"><title>K17: E200 CLK_40MHz_FPGA (in) | PlutoSky -</title></circle>
+<circle cx="560.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="406.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="406.0" r="4" fill="#d1d5db"/>
+<text x="58" y="438.0" font-size="11" text-anchor="end" fill="#555">L</text>
+<circle cx="84.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="434.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="434.0" r="4" fill="#d1d5db"/>
+<text x="58" y="466.0" font-size="11" text-anchor="end" fill="#555">M</text>
+<circle cx="84.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="462.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="462.0" r="11" fill="#c2a00e"><title>M20: E200 CLKIN_10MHz_REQ (out) | PlutoSky gpio_status[5]</title></circle>
+<circle cx="616.0" cy="462.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<text x="58" y="494.0" font-size="11" text-anchor="end" fill="#555">N</text>
+<circle cx="84.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="490.0" r="11" fill="#7a4fbf"><title>N17: E200 txnrx (out) | PlutoSky -</title></circle>
+<circle cx="560.0" cy="490.0" r="11" fill="#d9822b"><title>N18: E200 tx_clk_out (out) | PlutoSky -</title></circle>
+<circle cx="588.0" cy="490.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="490.0" r="11" fill="#2e7dd1"><title>N20: E200 rx_clk_in (in) | PlutoSky gpio_status[7]</title></circle>
+<text x="58" y="522.0" font-size="11" text-anchor="end" fill="#555">P</text>
+<circle cx="84.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="518.0" r="11" fill="#7a4fbf"><title>P14: E200 gpio_status[5] (in) | PlutoSky -</title></circle>
+<circle cx="476.0" cy="518.0" r="11" fill="#7a4fbf"><title>P15: E200 gpio_status[4] (in) | PlutoSky gpio_status[4]</title></circle>
+<circle cx="504.0" cy="518.0" r="11" fill="#7a4fbf"><title>P16: E200 gpio_en_agc (out) | PlutoSky spi_mosi</title></circle>
+<circle cx="532.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="518.0" r="11" fill="#7a4fbf"><title>P18: E200 spi_mosi (out) | PlutoSky txnrx</title></circle>
+<circle cx="588.0" cy="518.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="518.0" r="4" fill="#d1d5db"/>
+<text x="58" y="550.0" font-size="11" text-anchor="end" fill="#555">R</text>
+<circle cx="84.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="546.0" r="11" fill="#7a4fbf"><title>R14: E200 gpio_status[3] (in) | PlutoSky -</title></circle>
+<circle cx="476.0" cy="546.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="546.0" r="11" fill="#2e7dd1"><title>R16: E200 rx_data_in[7] (in) | PlutoSky -</title></circle>
+<circle cx="532.0" cy="546.0" r="11" fill="#2e7dd1"><title>R17: E200 rx_data_in[6] (in) | PlutoSky spi_csn</title></circle>
+<circle cx="560.0" cy="546.0" r="11" fill="#7a4fbf"><title>R18: E200 enable (out) | PlutoSky rx_data_in_n[3]</title></circle>
+<circle cx="560.0" cy="546.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<circle cx="588.0" cy="546.0" r="11" fill="#7a4fbf"><title>R19: E200 spi_clk (out) | PlutoSky gpio_resetb</title></circle>
+<circle cx="616.0" cy="546.0" r="4" fill="#d1d5db"/>
+<text x="58" y="578.0" font-size="11" text-anchor="end" fill="#555">T</text>
+<circle cx="84.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="574.0" r="11" fill="#6b7280"><title>T9: E200 GPIOB[3] (inout) | PlutoSky -</title></circle>
+<circle cx="336.0" cy="574.0" r="11" fill="#7a4fbf"><title>T10: E200 gpio_status[0] (in) | PlutoSky tx_data_out_n[4]</title></circle>
+<circle cx="364.0" cy="574.0" r="11" fill="#7a4fbf"><title>T11: E200 gpio_ctl[3] (out) | PlutoSky tx_data_out_p[4]</title></circle>
+<circle cx="392.0" cy="574.0" r="11" fill="#d9822b"><title>T12: E200 tx_data_out[9] (out) | PlutoSky tx_data_out_p[3]</title></circle>
+<circle cx="420.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="574.0" r="11" fill="#7a4fbf"><title>T14: E200 gpio_ctl[1] (out) | PlutoSky gpio_status[3]</title></circle>
+<circle cx="448.0" cy="574.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<circle cx="476.0" cy="574.0" r="11" fill="#7a4fbf"><title>T15: E200 gpio_status[7] (in) | PlutoSky enable</title></circle>
+<circle cx="504.0" cy="574.0" r="11" fill="#d9822b"><title>T16: E200 tx_data_out[1] (out) | PlutoSky rx_data_in_p[1]</title></circle>
+<circle cx="504.0" cy="574.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<circle cx="532.0" cy="574.0" r="11" fill="#7a4fbf"><title>T17: E200 gpio_resetb (out) | PlutoSky rx_data_in_p[3]</title></circle>
+<circle cx="532.0" cy="574.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<circle cx="560.0" cy="574.0" r="4" fill="#d1d5db"/>
+<circle cx="588.0" cy="574.0" r="11" fill="#7a4fbf"><title>T19: E200 spi_miso (in) | PlutoSky -</title></circle>
+<circle cx="616.0" cy="574.0" r="11" fill="#7a4fbf"><title>T20: E200 spi_csn (out) | PlutoSky rx_data_in_p[4]</title></circle>
+<circle cx="616.0" cy="574.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<text x="58" y="606.0" font-size="11" text-anchor="end" fill="#555">U</text>
+<circle cx="84.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="252.0" cy="602.0" r="11" fill="#6b7280"><title>U7: E200 GPIOB[1] (inout) | PlutoSky -</title></circle>
+<circle cx="280.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="602.0" r="11" fill="#6b7280"><title>U10: E200 GPIOB[4] (inout) | PlutoSky -</title></circle>
+<circle cx="364.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="602.0" r="11" fill="#d9822b"><title>U12: E200 tx_data_out[8] (out) | PlutoSky tx_data_out_n[3]</title></circle>
+<circle cx="420.0" cy="602.0" r="11" fill="#7a4fbf"><title>U13: E200 gpio_ctl[0] (out) | PlutoSky tx_data_out_p[5]</title></circle>
+<circle cx="448.0" cy="602.0" r="11" fill="#d9822b"><title>U14: E200 tx_data_out[5] (out) | PlutoSky tx_clk_out_p</title></circle>
+<circle cx="476.0" cy="602.0" r="11" fill="#d9822b"><title>U15: E200 tx_data_out[4] (out) | PlutoSky tx_clk_out_n</title></circle>
+<circle cx="504.0" cy="602.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="602.0" r="11" fill="#d9822b"><title>U17: E200 tx_data_out[0] (out) | PlutoSky rx_data_in_n[1]</title></circle>
+<circle cx="532.0" cy="602.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<circle cx="560.0" cy="602.0" r="11" fill="#d9822b"><title>U18: E200 tx_data_out[3] (out) | PlutoSky rx_clk_in_p</title></circle>
+<circle cx="560.0" cy="602.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<circle cx="588.0" cy="602.0" r="11" fill="#d9822b"><title>U19: E200 tx_data_out[2] (out) | PlutoSky rx_clk_in_n</title></circle>
+<circle cx="588.0" cy="602.0" r="13.5" fill="none" stroke="#e11d48" stroke-width="3"/>
+<circle cx="616.0" cy="602.0" r="4" fill="#d1d5db"/>
+<text x="58" y="634.0" font-size="11" text-anchor="end" fill="#555">V</text>
+<circle cx="84.0" cy="630.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="630.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="630.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="630.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="630.0" r="11" fill="#6b7280"><title>V5: E200 GPIOB[0] (inout) | PlutoSky -</title></circle>
+<circle cx="224.0" cy="630.0" r="11" fill="#c2a00e"><title>V6: E200 CLK_40M_DAC_nSYNC (out) | PlutoSky -</title></circle>
+<circle cx="252.0" cy="630.0" r="11" fill="#6b7280"><title>V7: E200 GPIOB[2] (inout) | PlutoSky -</title></circle>
+<circle cx="280.0" cy="630.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="630.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="630.0" r="11" fill="#c2a00e"><title>V10: E200 CLK_40M_DAC_DIN (out) | PlutoSky -</title></circle>
+<circle cx="364.0" cy="630.0" r="11" fill="#c2a00e"><title>V11: E200 PPS_IN (in) | PlutoSky -</title></circle>
+<circle cx="392.0" cy="630.0" r="11" fill="#d9822b"><title>V12: E200 tx_data_out[7] (out) | PlutoSky tx_data_out_p[1]</title></circle>
+<circle cx="420.0" cy="630.0" r="11" fill="#7a4fbf"><title>V13: E200 gpio_ctl[2] (out) | PlutoSky tx_data_out_n[5]</title></circle>
+<circle cx="448.0" cy="630.0" r="4" fill="#d1d5db"/>
+<circle cx="476.0" cy="630.0" r="11" fill="#d9822b"><title>V15: E200 tx_data_out[11] (out) | PlutoSky tx_data_out_p[0]</title></circle>
+<circle cx="504.0" cy="630.0" r="11" fill="#d9822b"><title>V16: E200 tx_frame_out (out) | PlutoSky tx_frame_out_p</title></circle>
+<circle cx="532.0" cy="630.0" r="11" fill="#2e7dd1"><title>V17: E200 rx_data_in[3] (in) | PlutoSky spi_miso</title></circle>
+<circle cx="560.0" cy="630.0" r="11" fill="#2e7dd1"><title>V18: E200 rx_data_in[2] (in) | PlutoSky spi_clk</title></circle>
+<circle cx="588.0" cy="630.0" r="4" fill="#d1d5db"/>
+<circle cx="616.0" cy="630.0" r="11" fill="#2e7dd1"><title>V20: E200 rx_data_in[9] (in) | PlutoSky rx_data_in_p[2]</title></circle>
+<text x="58" y="662.0" font-size="11" text-anchor="end" fill="#555">W</text>
+<circle cx="84.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="658.0" r="11" fill="#c2a00e"><title>W6: E200 CLK_40M_DAC_SCLK (out) | PlutoSky -</title></circle>
+<circle cx="252.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="280.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="336.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="658.0" r="11" fill="#d9822b"><title>W13: E200 tx_data_out[6] (out) | PlutoSky tx_data_out_n[1]</title></circle>
+<circle cx="448.0" cy="658.0" r="11" fill="#2e7dd1"><title>W14: E200 rx_data_in[11] (in) | PlutoSky tx_data_out_p[2]</title></circle>
+<circle cx="476.0" cy="658.0" r="11" fill="#d9822b"><title>W15: E200 tx_data_out[10] (out) | PlutoSky tx_data_out_n[0]</title></circle>
+<circle cx="504.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="532.0" cy="658.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="658.0" r="11" fill="#2e7dd1"><title>W18: E200 rx_data_in[5] (in) | PlutoSky rx_data_in_p[5]</title></circle>
+<circle cx="588.0" cy="658.0" r="11" fill="#2e7dd1"><title>W19: E200 rx_data_in[4] (in) | PlutoSky rx_data_in_n[5]</title></circle>
+<circle cx="616.0" cy="658.0" r="11" fill="#2e7dd1"><title>W20: E200 rx_data_in[8] (in) | PlutoSky rx_data_in_n[2]</title></circle>
+<text x="58" y="690.0" font-size="11" text-anchor="end" fill="#555">Y</text>
+<circle cx="84.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="112.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="140.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="168.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="196.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="224.0" cy="686.0" r="11" fill="#6b7280"><title>Y6: E200 emio_uart1_rxd (in) | PlutoSky -</title></circle>
+<circle cx="252.0" cy="686.0" r="11" fill="#6b7280"><title>Y7: E200 GPIOB[5] (inout) | PlutoSky -</title></circle>
+<circle cx="280.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="308.0" cy="686.0" r="11" fill="#6b7280"><title>Y9: E200 emio_uart1_txd (out) | PlutoSky -</title></circle>
+<circle cx="336.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="364.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="392.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="420.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="448.0" cy="686.0" r="11" fill="#2e7dd1"><title>Y14: E200 rx_data_in[10] (in) | PlutoSky tx_data_out_n[2]</title></circle>
+<circle cx="476.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="504.0" cy="686.0" r="11" fill="#2e7dd1"><title>Y16: E200 rx_frame_in (in) | PlutoSky rx_frame_in_p</title></circle>
+<circle cx="532.0" cy="686.0" r="4" fill="#d1d5db"/>
+<circle cx="560.0" cy="686.0" r="11" fill="#2e7dd1"><title>Y18: E200 rx_data_in[1] (in) | PlutoSky rx_data_in_p[0]</title></circle>
+<circle cx="588.0" cy="686.0" r="11" fill="#2e7dd1"><title>Y19: E200 rx_data_in[0] (in) | PlutoSky rx_data_in_n[0]</title></circle>
+<circle cx="616.0" cy="686.0" r="4" fill="#d1d5db"/>
+<text x="680" y="150" font-size="16" font-weight="bold" fill="#111">Legenda</text>
+<circle cx="690" cy="184" r="10" fill="#2e7dd1"/><text x="710" y="189" font-size="15" fill="#111">AD9361 recepção (CMOS 12 bits)</text>
+<circle cx="690" cy="214" r="10" fill="#d9822b"/><text x="710" y="219" font-size="15" fill="#111">AD9361 transmissão (CMOS 12 bits)</text>
+<circle cx="690" cy="244" r="10" fill="#7a4fbf"/><text x="710" y="249" font-size="15" fill="#111">AD9361 controle / SPI</text>
+<circle cx="690" cy="274" r="10" fill="#2e8b57"/><text x="710" y="279" font-size="15" fill="#111">Ethernet RGMII (PHY no FPGA)</text>
+<circle cx="690" cy="304" r="10" fill="#c2a00e"/><text x="710" y="309" font-size="15" fill="#111">clocks / 10 MHz / PPS</text>
+<circle cx="690" cy="334" r="10" fill="#6b7280"/><text x="710" y="339" font-size="15" fill="#111">GPIO, UART1, PA etc.</text>
+<circle cx="690" cy="364" r="10" fill="#fff" stroke="#e11d48" stroke-width="3"/><text x="710" y="369" font-size="15" fill="#111">conflito com a PlutoSky (9 pinos)</text>
+<circle cx="690" cy="394" r="4" fill="#d1d5db"/><text x="710" y="399" font-size="15" fill="#111">sem uso na E200, ou pino do PS/DDR/alimentação</text>
+<text x="680" y="438" font-size="14" fill="#444">Na tabela abaixo: pino, sinal na E200, direção</text>
+<text x="680" y="458" font-size="14" fill="#444">(out = o FPGA transmite) e, depois do &quot;·&quot;,</text>
+<text x="680" y="478" font-size="14" fill="#444">o que a PlutoSky liga nesse mesmo pino.</text>
+<text x="680" y="498" font-size="14" fill="#444">Em vermelho, os 9 pinos em conflito.</text>
+<text x="40" y="750" font-size="16" font-weight="bold" fill="#111">Pino · sinal na E200 (direção) · mesmo pino na PlutoSky</text>
+<circle cx="45" cy="772" r="5" fill="#2e8b57"/>
+<text x="55" y="776" font-size="12.5" fill="#111" font-weight="normal">A20 MDIO_PHY_mdio_io (inout)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="791" r="5" fill="#2e8b57"/>
+<text x="55" y="795" font-size="12.5" fill="#111" font-weight="normal">B19 eth_rst_n (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="810" r="5" fill="#2e8b57"/>
+<text x="55" y="814" font-size="12.5" fill="#111" font-weight="normal">B20 MDIO_PHY_mdc (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="829" r="5" fill="#2e8b57"/>
+<text x="55" y="833" font-size="12.5" fill="#111" font-weight="normal">C20 RGMII_td[3] (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="848" r="5" fill="#2e8b57"/>
+<text x="55" y="852" font-size="12.5" fill="#111" font-weight="normal">D18 RGMII_txc (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="867" r="5" fill="#2e8b57"/>
+<text x="55" y="871" font-size="12.5" fill="#111" font-weight="normal">D19 RGMII_td[2] (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="886" r="5" fill="#2e8b57"/>
+<text x="55" y="890" font-size="12.5" fill="#111" font-weight="normal">D20 RGMII_td[1] (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="905" r="5" fill="#2e8b57"/>
+<text x="55" y="909" font-size="12.5" fill="#111" font-weight="normal">E17 RGMII_rd[1] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="924" r="5" fill="#2e8b57"/>
+<text x="55" y="928" font-size="12.5" fill="#111" font-weight="normal">E18 RGMII_rd[3] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="943" r="5" fill="#2e8b57"/>
+<text x="55" y="947" font-size="12.5" fill="#111" font-weight="normal">E19 RGMII_rd[2] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="962" r="5" fill="#2e8b57"/>
+<text x="55" y="966" font-size="12.5" fill="#111" font-weight="normal">F16 RGMII_rd[0] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="981" r="5" fill="#2e8b57"/>
+<text x="55" y="985" font-size="12.5" fill="#111" font-weight="normal">F19 RGMII_td[0] (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="1000" r="5" fill="#2e8b57"/>
+<text x="55" y="1004" font-size="12.5" fill="#111" font-weight="normal">F20 RGMII_tx_ctl (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="1019" r="5" fill="#6b7280"/>
+<text x="55" y="1023" font-size="12.5" fill="#111" font-weight="normal">G15 tx_amp_en (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="1038" r="5" fill="#2e8b57"/>
+<text x="55" y="1042" font-size="12.5" fill="#111" font-weight="normal">G17 RGMII_rx_ctl (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="1057" r="5" fill="#2e8b57"/>
+<text x="55" y="1061" font-size="12.5" fill="#111" font-weight="normal">H16 RGMII_rxc (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="1076" r="5" fill="#7a4fbf"/>
+<text x="55" y="1080" font-size="12.5" fill="#111" font-weight="normal">J15 gpio_status[1] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="1095" r="5" fill="#7a4fbf"/>
+<text x="55" y="1099" font-size="12.5" fill="#111" font-weight="normal">J16 gpio_status[2] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="1114" r="5" fill="#c2a00e"/>
+<text x="55" y="1118" font-size="12.5" fill="#111" font-weight="normal">J18 CLKIN_10MHz (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="45" cy="1133" r="5" fill="#7a4fbf"/>
+<text x="55" y="1137" font-size="12.5" fill="#111" font-weight="normal">K16 gpio_status[6] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="345" cy="772" r="5" fill="#c2a00e"/>
+<text x="355" y="776" font-size="12.5" fill="#111" font-weight="normal">K17 CLK_40MHz_FPGA (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="345" cy="791" r="5" fill="#c2a00e"/>
+<text x="355" y="795" font-size="12.5" fill="#e11d48" font-weight="bold">M20 CLKIN_10MHz_REQ (out)<tspan fill="#666" font-weight="normal"> · gpio_status[5]</tspan></text>
+<circle cx="345" cy="810" r="5" fill="#7a4fbf"/>
+<text x="355" y="814" font-size="12.5" fill="#111" font-weight="normal">N17 txnrx (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="345" cy="829" r="5" fill="#d9822b"/>
+<text x="355" y="833" font-size="12.5" fill="#111" font-weight="normal">N18 tx_clk_out (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="345" cy="848" r="5" fill="#2e7dd1"/>
+<text x="355" y="852" font-size="12.5" fill="#111" font-weight="normal">N20 rx_clk_in (in)<tspan fill="#666" font-weight="normal"> · gpio_status[7]</tspan></text>
+<circle cx="345" cy="867" r="5" fill="#7a4fbf"/>
+<text x="355" y="871" font-size="12.5" fill="#111" font-weight="normal">P14 gpio_status[5] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="345" cy="886" r="5" fill="#7a4fbf"/>
+<text x="355" y="890" font-size="12.5" fill="#111" font-weight="normal">P15 gpio_status[4] (in)<tspan fill="#666" font-weight="normal"> · gpio_status[4]</tspan></text>
+<circle cx="345" cy="905" r="5" fill="#7a4fbf"/>
+<text x="355" y="909" font-size="12.5" fill="#111" font-weight="normal">P16 gpio_en_agc (out)<tspan fill="#666" font-weight="normal"> · spi_mosi</tspan></text>
+<circle cx="345" cy="924" r="5" fill="#7a4fbf"/>
+<text x="355" y="928" font-size="12.5" fill="#111" font-weight="normal">P18 spi_mosi (out)<tspan fill="#666" font-weight="normal"> · txnrx</tspan></text>
+<circle cx="345" cy="943" r="5" fill="#7a4fbf"/>
+<text x="355" y="947" font-size="12.5" fill="#111" font-weight="normal">R14 gpio_status[3] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="345" cy="962" r="5" fill="#2e7dd1"/>
+<text x="355" y="966" font-size="12.5" fill="#111" font-weight="normal">R16 rx_data_in[7] (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="345" cy="981" r="5" fill="#2e7dd1"/>
+<text x="355" y="985" font-size="12.5" fill="#111" font-weight="normal">R17 rx_data_in[6] (in)<tspan fill="#666" font-weight="normal"> · spi_csn</tspan></text>
+<circle cx="345" cy="1000" r="5" fill="#7a4fbf"/>
+<text x="355" y="1004" font-size="12.5" fill="#e11d48" font-weight="bold">R18 enable (out)<tspan fill="#666" font-weight="normal"> · rx_data_in_n[3]</tspan></text>
+<circle cx="345" cy="1019" r="5" fill="#7a4fbf"/>
+<text x="355" y="1023" font-size="12.5" fill="#111" font-weight="normal">R19 spi_clk (out)<tspan fill="#666" font-weight="normal"> · gpio_resetb</tspan></text>
+<circle cx="345" cy="1038" r="5" fill="#6b7280"/>
+<text x="355" y="1042" font-size="12.5" fill="#111" font-weight="normal">T9 GPIOB[3] (inout)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="345" cy="1057" r="5" fill="#7a4fbf"/>
+<text x="355" y="1061" font-size="12.5" fill="#111" font-weight="normal">T10 gpio_status[0] (in)<tspan fill="#666" font-weight="normal"> · tx_data_out_n[4]</tspan></text>
+<circle cx="345" cy="1076" r="5" fill="#7a4fbf"/>
+<text x="355" y="1080" font-size="12.5" fill="#111" font-weight="normal">T11 gpio_ctl[3] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_p[4]</tspan></text>
+<circle cx="345" cy="1095" r="5" fill="#d9822b"/>
+<text x="355" y="1099" font-size="12.5" fill="#111" font-weight="normal">T12 tx_data_out[9] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_p[3]</tspan></text>
+<circle cx="345" cy="1114" r="5" fill="#7a4fbf"/>
+<text x="355" y="1118" font-size="12.5" fill="#e11d48" font-weight="bold">T14 gpio_ctl[1] (out)<tspan fill="#666" font-weight="normal"> · gpio_status[3]</tspan></text>
+<circle cx="345" cy="1133" r="5" fill="#7a4fbf"/>
+<text x="355" y="1137" font-size="12.5" fill="#111" font-weight="normal">T15 gpio_status[7] (in)<tspan fill="#666" font-weight="normal"> · enable</tspan></text>
+<circle cx="645" cy="772" r="5" fill="#d9822b"/>
+<text x="655" y="776" font-size="12.5" fill="#e11d48" font-weight="bold">T16 tx_data_out[1] (out)<tspan fill="#666" font-weight="normal"> · rx_data_in_p[1]</tspan></text>
+<circle cx="645" cy="791" r="5" fill="#7a4fbf"/>
+<text x="655" y="795" font-size="12.5" fill="#e11d48" font-weight="bold">T17 gpio_resetb (out)<tspan fill="#666" font-weight="normal"> · rx_data_in_p[3]</tspan></text>
+<circle cx="645" cy="810" r="5" fill="#7a4fbf"/>
+<text x="655" y="814" font-size="12.5" fill="#111" font-weight="normal">T19 spi_miso (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="645" cy="829" r="5" fill="#7a4fbf"/>
+<text x="655" y="833" font-size="12.5" fill="#e11d48" font-weight="bold">T20 spi_csn (out)<tspan fill="#666" font-weight="normal"> · rx_data_in_p[4]</tspan></text>
+<circle cx="645" cy="848" r="5" fill="#6b7280"/>
+<text x="655" y="852" font-size="12.5" fill="#111" font-weight="normal">U7 GPIOB[1] (inout)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="645" cy="867" r="5" fill="#6b7280"/>
+<text x="655" y="871" font-size="12.5" fill="#111" font-weight="normal">U10 GPIOB[4] (inout)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="645" cy="886" r="5" fill="#d9822b"/>
+<text x="655" y="890" font-size="12.5" fill="#111" font-weight="normal">U12 tx_data_out[8] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_n[3]</tspan></text>
+<circle cx="645" cy="905" r="5" fill="#7a4fbf"/>
+<text x="655" y="909" font-size="12.5" fill="#111" font-weight="normal">U13 gpio_ctl[0] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_p[5]</tspan></text>
+<circle cx="645" cy="924" r="5" fill="#d9822b"/>
+<text x="655" y="928" font-size="12.5" fill="#111" font-weight="normal">U14 tx_data_out[5] (out)<tspan fill="#666" font-weight="normal"> · tx_clk_out_p</tspan></text>
+<circle cx="645" cy="943" r="5" fill="#d9822b"/>
+<text x="655" y="947" font-size="12.5" fill="#111" font-weight="normal">U15 tx_data_out[4] (out)<tspan fill="#666" font-weight="normal"> · tx_clk_out_n</tspan></text>
+<circle cx="645" cy="962" r="5" fill="#d9822b"/>
+<text x="655" y="966" font-size="12.5" fill="#e11d48" font-weight="bold">U17 tx_data_out[0] (out)<tspan fill="#666" font-weight="normal"> · rx_data_in_n[1]</tspan></text>
+<circle cx="645" cy="981" r="5" fill="#d9822b"/>
+<text x="655" y="985" font-size="12.5" fill="#e11d48" font-weight="bold">U18 tx_data_out[3] (out)<tspan fill="#666" font-weight="normal"> · rx_clk_in_p</tspan></text>
+<circle cx="645" cy="1000" r="5" fill="#d9822b"/>
+<text x="655" y="1004" font-size="12.5" fill="#e11d48" font-weight="bold">U19 tx_data_out[2] (out)<tspan fill="#666" font-weight="normal"> · rx_clk_in_n</tspan></text>
+<circle cx="645" cy="1019" r="5" fill="#6b7280"/>
+<text x="655" y="1023" font-size="12.5" fill="#111" font-weight="normal">V5 GPIOB[0] (inout)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="645" cy="1038" r="5" fill="#c2a00e"/>
+<text x="655" y="1042" font-size="12.5" fill="#111" font-weight="normal">V6 CLK_40M_DAC_nSYNC (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="645" cy="1057" r="5" fill="#6b7280"/>
+<text x="655" y="1061" font-size="12.5" fill="#111" font-weight="normal">V7 GPIOB[2] (inout)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="645" cy="1076" r="5" fill="#c2a00e"/>
+<text x="655" y="1080" font-size="12.5" fill="#111" font-weight="normal">V10 CLK_40M_DAC_DIN (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="645" cy="1095" r="5" fill="#c2a00e"/>
+<text x="655" y="1099" font-size="12.5" fill="#111" font-weight="normal">V11 PPS_IN (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="645" cy="1114" r="5" fill="#d9822b"/>
+<text x="655" y="1118" font-size="12.5" fill="#111" font-weight="normal">V12 tx_data_out[7] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_p[1]</tspan></text>
+<circle cx="645" cy="1133" r="5" fill="#7a4fbf"/>
+<text x="655" y="1137" font-size="12.5" fill="#111" font-weight="normal">V13 gpio_ctl[2] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_n[5]</tspan></text>
+<circle cx="945" cy="772" r="5" fill="#d9822b"/>
+<text x="955" y="776" font-size="12.5" fill="#111" font-weight="normal">V15 tx_data_out[11] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_p[0]</tspan></text>
+<circle cx="945" cy="791" r="5" fill="#d9822b"/>
+<text x="955" y="795" font-size="12.5" fill="#111" font-weight="normal">V16 tx_frame_out (out)<tspan fill="#666" font-weight="normal"> · tx_frame_out_p</tspan></text>
+<circle cx="945" cy="810" r="5" fill="#2e7dd1"/>
+<text x="955" y="814" font-size="12.5" fill="#111" font-weight="normal">V17 rx_data_in[3] (in)<tspan fill="#666" font-weight="normal"> · spi_miso</tspan></text>
+<circle cx="945" cy="829" r="5" fill="#2e7dd1"/>
+<text x="955" y="833" font-size="12.5" fill="#111" font-weight="normal">V18 rx_data_in[2] (in)<tspan fill="#666" font-weight="normal"> · spi_clk</tspan></text>
+<circle cx="945" cy="848" r="5" fill="#2e7dd1"/>
+<text x="955" y="852" font-size="12.5" fill="#111" font-weight="normal">V20 rx_data_in[9] (in)<tspan fill="#666" font-weight="normal"> · rx_data_in_p[2]</tspan></text>
+<circle cx="945" cy="867" r="5" fill="#c2a00e"/>
+<text x="955" y="871" font-size="12.5" fill="#111" font-weight="normal">W6 CLK_40M_DAC_SCLK (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="945" cy="886" r="5" fill="#d9822b"/>
+<text x="955" y="890" font-size="12.5" fill="#111" font-weight="normal">W13 tx_data_out[6] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_n[1]</tspan></text>
+<circle cx="945" cy="905" r="5" fill="#2e7dd1"/>
+<text x="955" y="909" font-size="12.5" fill="#111" font-weight="normal">W14 rx_data_in[11] (in)<tspan fill="#666" font-weight="normal"> · tx_data_out_p[2]</tspan></text>
+<circle cx="945" cy="924" r="5" fill="#d9822b"/>
+<text x="955" y="928" font-size="12.5" fill="#111" font-weight="normal">W15 tx_data_out[10] (out)<tspan fill="#666" font-weight="normal"> · tx_data_out_n[0]</tspan></text>
+<circle cx="945" cy="943" r="5" fill="#2e7dd1"/>
+<text x="955" y="947" font-size="12.5" fill="#111" font-weight="normal">W18 rx_data_in[5] (in)<tspan fill="#666" font-weight="normal"> · rx_data_in_p[5]</tspan></text>
+<circle cx="945" cy="962" r="5" fill="#2e7dd1"/>
+<text x="955" y="966" font-size="12.5" fill="#111" font-weight="normal">W19 rx_data_in[4] (in)<tspan fill="#666" font-weight="normal"> · rx_data_in_n[5]</tspan></text>
+<circle cx="945" cy="981" r="5" fill="#2e7dd1"/>
+<text x="955" y="985" font-size="12.5" fill="#111" font-weight="normal">W20 rx_data_in[8] (in)<tspan fill="#666" font-weight="normal"> · rx_data_in_n[2]</tspan></text>
+<circle cx="945" cy="1000" r="5" fill="#6b7280"/>
+<text x="955" y="1004" font-size="12.5" fill="#111" font-weight="normal">Y6 emio_uart1_rxd (in)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="945" cy="1019" r="5" fill="#6b7280"/>
+<text x="955" y="1023" font-size="12.5" fill="#111" font-weight="normal">Y7 GPIOB[5] (inout)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="945" cy="1038" r="5" fill="#6b7280"/>
+<text x="955" y="1042" font-size="12.5" fill="#111" font-weight="normal">Y9 emio_uart1_txd (out)<tspan fill="#666" font-weight="normal"> · —</tspan></text>
+<circle cx="945" cy="1057" r="5" fill="#2e7dd1"/>
+<text x="955" y="1061" font-size="12.5" fill="#111" font-weight="normal">Y14 rx_data_in[10] (in)<tspan fill="#666" font-weight="normal"> · tx_data_out_n[2]</tspan></text>
+<circle cx="945" cy="1076" r="5" fill="#2e7dd1"/>
+<text x="955" y="1080" font-size="12.5" fill="#111" font-weight="normal">Y16 rx_frame_in (in)<tspan fill="#666" font-weight="normal"> · rx_frame_in_p</tspan></text>
+<circle cx="945" cy="1095" r="5" fill="#2e7dd1"/>
+<text x="955" y="1099" font-size="12.5" fill="#111" font-weight="normal">Y18 rx_data_in[1] (in)<tspan fill="#666" font-weight="normal"> · rx_data_in_p[0]</tspan></text>
+<circle cx="945" cy="1114" r="5" fill="#2e7dd1"/>
+<text x="955" y="1118" font-size="12.5" fill="#111" font-weight="normal">Y19 rx_data_in[0] (in)<tspan fill="#666" font-weight="normal"> · rx_data_in_n[0]</tspan></text>
+<text x="40" y="1186" font-size="15" font-weight="bold" fill="#222">Diferenças que impedem usar o firmware da E200 na PlutoSky:</text>
+<text x="40" y="1208" font-size="14" font-weight="normal" fill="#222">• A E200 liga o AD9361 em modo CMOS (12 fios por direção); a PlutoSky usa LVDS (6 pares diferenciais).</text>
+<text x="40" y="1230" font-size="14" font-weight="normal" fill="#222">• A E200 tem a Ethernet no FPGA (RGMII, balls C20…H16); na PlutoSky o PHY RTL8211F fica no PS (MIO 16–27).</text>
+<text x="40" y="1252" font-size="14" font-weight="normal" fill="#222">• 9 pinos em conflito (anéis vermelhos): o bitstream da E200 transmitiria em fios que a PlutoSky já transmite.</text>
+<text x="40" y="1274" font-size="14" font-weight="normal" fill="#222">Fontes: MicroPhase/antsdr-fw-patch (E200) e Xiaozhang-code-cloud/Fish-Wan-plutosdr-fw-7020-SDR (PlutoSky);</text>
+<text x="40" y="1296" font-size="14" font-weight="normal" fill="#222">comparação gerada por tools/droneid/pinmap_compare.py deste repositório.</text>
+</svg>
